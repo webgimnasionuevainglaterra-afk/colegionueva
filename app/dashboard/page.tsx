@@ -1,0 +1,590 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/lib/supabase-client';
+import CreateAdministratorForm from '@/components/CreateAdministratorForm';
+import AdministratorsList from '@/components/AdministratorsList';
+import CreateCourseForm from '@/components/CreateCourseForm';
+import CoursesList from '@/components/CoursesList';
+import ContentManager from '@/components/ContentManager';
+import CreateTeacherForm from '@/components/CreateTeacherForm';
+import TeachersList from '@/components/TeachersList';
+import '../css/dashboard.css';
+
+interface AdministratorInfo {
+  nombre: string;
+  apellido: string;
+  foto_url: string | null;
+  role: string;
+  is_online?: boolean;
+}
+
+export default function Dashboard() {
+  const { user, loading, userRole, signOut } = useAuth();
+  const { t } = useLanguage();
+  const router = useRouter();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUsersMenuOpen, setIsUsersMenuOpen] = useState(false);
+  const [isProgramsMenuOpen, setIsProgramsMenuOpen] = useState(false);
+  const [isAdmissionsMenuOpen, setIsAdmissionsMenuOpen] = useState(false);
+  const [isReportsMenuOpen, setIsReportsMenuOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [coursesRefreshKey, setCoursesRefreshKey] = useState(0);
+  const [teachersRefreshKey, setTeachersRefreshKey] = useState(0);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
+  const [isCreateTeacherModalOpen, setIsCreateTeacherModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [adminInfo, setAdminInfo] = useState<AdministratorInfo | null>(null);
+  const [loadingAdminInfo, setLoadingAdminInfo] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/aula-virtual');
+    }
+  }, [user, loading, router]);
+
+  // Actualizar estado online cuando el usuario está conectado
+  useEffect(() => {
+    if (!user) return;
+
+    const updateOnlineStatus = async (isOnline: boolean) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (token) {
+          await fetch('/api/admin/update-user-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              isOnline: isOnline,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Error al actualizar estado online:', error);
+      }
+    };
+
+    // Marcar como online cuando se carga la página
+    updateOnlineStatus(true);
+
+    // Marcar como offline cuando se cierra la página o se desconecta
+    const handleBeforeUnload = () => {
+      updateOnlineStatus(false);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      updateOnlineStatus(false);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const fetchAdminInfo = async () => {
+      if (!user) {
+        setLoadingAdminInfo(false);
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (!token) {
+          setLoadingAdminInfo(false);
+          return;
+        }
+
+        const response = await fetch('/api/admin/get-current-administrator', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setAdminInfo({
+              nombre: result.data.nombre || 'Usuario',
+              apellido: result.data.apellido || '',
+              foto_url: result.data.foto_url,
+              role: result.data.role || 'Administrador',
+              is_online: result.data.is_online !== undefined ? result.data.is_online : true,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error al obtener información del administrador:', error);
+      } finally {
+        setLoadingAdminInfo(false);
+      }
+    };
+
+    if (user) {
+      fetchAdminInfo();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.settings-dropdown')) {
+        setIsSettingsOpen(false);
+      }
+      if (!target.closest('.users-menu-dropdown')) {
+        setIsUsersMenuOpen(false);
+      }
+      if (!target.closest('.programs-menu-dropdown')) {
+        setIsProgramsMenuOpen(false);
+      }
+      if (!target.closest('.admissions-menu-dropdown')) {
+        setIsAdmissionsMenuOpen(false);
+      }
+      if (!target.closest('.reports-menu-dropdown')) {
+        setIsReportsMenuOpen(false);
+      }
+    };
+
+    if (isSettingsOpen || isUsersMenuOpen || isProgramsMenuOpen || isAdmissionsMenuOpen || isReportsMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isSettingsOpen, isUsersMenuOpen, isProgramsMenuOpen, isAdmissionsMenuOpen, isReportsMenuOpen]);
+
+  if (loading) {
+    return (
+      <div className="dashboard-loading">
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/aula-virtual');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
+
+  const usersMenuItems = [
+    { id: 'administradores', label: 'Crear Administradores' },
+    { id: 'profesores', label: 'Crear Profesores' },
+    { id: 'alumnos', label: 'Crear Alumnos' },
+    { id: 'acudientes', label: 'Gestionar Acudientes' },
+  ];
+
+  const handleMenuClick = (menuId: string) => {
+    setActiveMenu(menuId);
+    setIsUsersMenuOpen(false);
+    setIsProgramsMenuOpen(false);
+    setIsAdmissionsMenuOpen(false);
+    setIsReportsMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const programsMenuItems = [
+    { id: 'grados', label: 'Crear Cursos' },
+    { id: 'contenidos', label: 'Crear Contenidos' },
+  ];
+
+  const admissionsMenuItems = [
+    { id: 'alumnos-presenciales', label: 'Alumnos presenciales' },
+    { id: 'alumnos-online', label: 'Alumnos online' },
+  ];
+
+  const reportsMenuItems = [
+    { id: 'reportes-profesores', label: 'Reportes profesores' },
+    { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
+  ];
+
+  return (
+    <div className="dashboard-container">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="dashboard-header-content">
+          <div className="header-left">
+            <button 
+              className="mobile-menu-toggle"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Menú"
+            >
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+            <div className="header-logo">
+              <Image
+                src="/images/logo.svg"
+                alt="Logo"
+                width={60}
+                height={60}
+                className="logo-image"
+                unoptimized
+              />
+            </div>
+          </div>
+          <div className="header-right">
+            <nav className={`header-menu ${isMobileMenuOpen ? 'mobile-menu-open' : ''}`}>
+              <button
+                className={`menu-item ${activeMenu === 'dashboard' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveMenu('dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Dashboard
+              </button>
+              <div className="users-menu-dropdown">
+                <button
+                  className={`menu-item ${isUsersMenuOpen ? 'active' : ''}`}
+                  onClick={() => setIsUsersMenuOpen(!isUsersMenuOpen)}
+                >
+                  Gestionar Usuarios
+                  <svg
+                    className="dropdown-arrow"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    style={{
+                      transform: isUsersMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isUsersMenuOpen && (
+                  <div className="users-menu">
+                    {usersMenuItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                        onClick={() => handleMenuClick(item.id)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="programs-menu-dropdown">
+                <button
+                  className={`menu-item ${isProgramsMenuOpen ? 'active' : ''}`}
+                  onClick={() => setIsProgramsMenuOpen(!isProgramsMenuOpen)}
+                >
+                  Programas Educativos
+                  <svg
+                    className="dropdown-arrow"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    style={{
+                      transform: isProgramsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isProgramsMenuOpen && (
+                  <div className="users-menu">
+                    {programsMenuItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveMenu(item.id);
+                          setIsProgramsMenuOpen(false);
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="admissions-menu-dropdown">
+                <button
+                  className={`menu-item ${isAdmissionsMenuOpen ? 'active' : ''}`}
+                  onClick={() => setIsAdmissionsMenuOpen(!isAdmissionsMenuOpen)}
+                >
+                  Admisiones
+                  <svg
+                    className="dropdown-arrow"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    style={{
+                      transform: isAdmissionsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isAdmissionsMenuOpen && (
+                  <div className="users-menu">
+                    {admissionsMenuItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveMenu(item.id);
+                          setIsAdmissionsMenuOpen(false);
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="reports-menu-dropdown">
+                <button
+                  className={`menu-item ${isReportsMenuOpen ? 'active' : ''}`}
+                  onClick={() => setIsReportsMenuOpen(!isReportsMenuOpen)}
+                >
+                  Reportes
+                  <svg
+                    className="dropdown-arrow"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    style={{
+                      transform: isReportsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isReportsMenuOpen && (
+                  <div className="users-menu">
+                    {reportsMenuItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveMenu(item.id);
+                          setIsReportsMenuOpen(false);
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </nav>
+            {isMobileMenuOpen && (
+              <div className="mobile-menu-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+            )}
+            <div className="user-info">
+              <div className="user-avatar-container">
+                <div className="user-avatar">
+                  {adminInfo?.foto_url ? (
+                    <Image
+                      src={adminInfo.foto_url}
+                      alt={`${adminInfo.nombre} ${adminInfo.apellido}`}
+                      width={40}
+                      height={40}
+                      className="avatar-image"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      {adminInfo ? 
+                        `${adminInfo.nombre.charAt(0).toUpperCase()}${adminInfo.apellido.charAt(0).toUpperCase()}` :
+                        'U'
+                      }
+                    </div>
+                  )}
+                </div>
+                {user && adminInfo && (
+                  <span 
+                    className={`online-status-indicator ${adminInfo.is_online !== false ? 'online' : 'offline'}`} 
+                    title={adminInfo.is_online !== false ? 'En línea' : 'Desconectado'}
+                  ></span>
+                )}
+              </div>
+              {!loadingAdminInfo && adminInfo && (
+                <div className="user-details">
+                  <span className="user-name">{adminInfo.nombre} {adminInfo.apellido}</span>
+                  <span className="user-role">{adminInfo.role}</span>
+                </div>
+              )}
+              {loadingAdminInfo && (
+                <div className="user-details">
+                  <span className="user-name">Cargando...</span>
+                  <span className="user-role">...</span>
+                </div>
+              )}
+            </div>
+            <button
+              className="notifications-button"
+              aria-label="Notificaciones"
+            >
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+            <div className="settings-dropdown">
+              <button
+                className="settings-button"
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                aria-label="Configuración"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              {isSettingsOpen && (
+                <div className="settings-menu">
+                  <button className="settings-menu-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Ajustes
+                  </button>
+                  <button className="settings-menu-item" onClick={handleSignOut}>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="dashboard-main">
+
+        {/* Content Area */}
+        <main className="dashboard-content">
+          {activeMenu === 'administradores' ? (
+            <div className="administrators-section">
+              <div className="administrators-actions">
+                <h2 className="section-title">Gestionar Administradores</h2>
+                <button 
+                  className="create-button"
+                  onClick={() => setIsCreateModalOpen(true)}
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Crear Administrador
+                </button>
+              </div>
+              <AdministratorsList key={refreshKey} />
+              {isCreateModalOpen && (
+                <CreateAdministratorForm 
+                  onClose={() => setIsCreateModalOpen(false)}
+                  onAdministratorCreated={() => {
+                    setRefreshKey(prev => prev + 1);
+                    setIsCreateModalOpen(false);
+                  }}
+                />
+              )}
+            </div>
+          ) : activeMenu === 'grados' ? (
+            <div className="administrators-section">
+              <div className="administrators-actions">
+                <h2 className="section-title">Gestionar Cursos</h2>
+                <button 
+                  className="create-button"
+                  onClick={() => setIsCreateCourseModalOpen(true)}
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Crear Curso
+                </button>
+              </div>
+              <CoursesList key={coursesRefreshKey} />
+              {isCreateCourseModalOpen && (
+                <CreateCourseForm 
+                  onClose={() => setIsCreateCourseModalOpen(false)}
+                  onCourseCreated={() => {
+                    setCoursesRefreshKey(prev => prev + 1);
+                    setIsCreateCourseModalOpen(false);
+                  }}
+                />
+              )}
+            </div>
+          ) : activeMenu === 'profesores' ? (
+            <div className="administrators-section">
+              <div className="administrators-actions">
+                <h2 className="section-title">Gestionar Profesores</h2>
+                <button 
+                  className="create-button"
+                  onClick={() => setIsCreateTeacherModalOpen(true)}
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Crear Profesor
+                </button>
+              </div>
+              <TeachersList key={teachersRefreshKey} />
+              {isCreateTeacherModalOpen && (
+                <CreateTeacherForm 
+                  onClose={() => setIsCreateTeacherModalOpen(false)}
+                  onTeacherCreated={() => {
+                    setTeachersRefreshKey(prev => prev + 1);
+                    setIsCreateTeacherModalOpen(false);
+                  }}
+                />
+              )}
+            </div>
+          ) : activeMenu === 'contenidos' ? (
+            <ContentManager />
+          ) : (
+            <div className="dashboard-welcome">
+              <h1 className="welcome-title">Bienvenido al Panel de Administración</h1>
+              <p className="welcome-description">
+                Selecciona una opción del menú superior para comenzar a gestionar la plataforma.
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+

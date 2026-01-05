@@ -1,0 +1,61 @@
+{
+  "header": {
+    "phone": "Phone: +1 234 567 890",
+    "email": "Email: info@nuevainglaterra.com",
+    "address": "Main Ave. 123, City, Country",
+    "whoWeAre": "About Us",
+    "academicOffer": "Academic Offer",
+    "admissions": "Admissions",
+    "community": "Community",
+    "virtualClassroom": "Virtual Classroom"
+  },
+  "home": {
+    "presentialEnrollment": "Open Enrollment 2026",
+    "presentialDescription": "Discover our presential courses and start your learning journey",
+    "seeMore": "See More",
+    "virtualClassroom": "Virtual Classroom",
+    "virtualDescription": "Explore our online course platform",
+    "seeCourses": "See Courses",
+    "digitalTransformation": "Digital Transformation",
+    "transformYourFuture": "Transform Your Future",
+    "transformSubtitle": "Discover how our courses can change your career",
+    "transformDescription": "Join thousands of students who have transformed their lives and careers through our online education platform. Learn at your own pace, from anywhere, and gain the skills you need to stand out.",
+    "certificateOnCompletion": "Certificate upon completion",
+    "unlimitedAccess": "Unlimited access",
+    "unforgettableMoments": "Unforgettable Moments",
+    "whatStudentsSay": "What our students say",
+    "openEnrollment": "Open Enrollment"
+  },
+  "testimonials": {
+    "anaGarcia": "Ana García",
+    "luisFernandez": "Luis Fernández",
+    "juanMartinez": "Juan Martínez",
+    "mariaRodriguez": "María Rodríguez",
+    "student": "Student",
+    "testimonial1": "The instructors are experts in their fields. I have gained invaluable knowledge.",
+    "testimonial2": "The platform is intuitive and easy to use. I definitely recommend it.",
+    "testimonial3": "Excellent platform. The courses are very complete and the content is high quality.",
+    "testimonial4": "I have learned valuable skills that I apply in my daily work. Highly recommended."
+  },
+  "footer": {
+    "description": "Online education platform committed to your professional growth.",
+    "quickLinks": "Quick Links",
+    "contact": "Contact",
+    "copyright": "© 2026 New England. All rights reserved.",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "logIn": "Log In"
+  },
+  "login": {
+    "title": "Virtual Classroom",
+    "subtitle": "Sign in to access your educational platform",
+    "email": "Email",
+    "password": "Password",
+    "rememberSession": "Remember session",
+    "forgotPassword": "Forgot your password?",
+    "signIn": "Sign In",
+    "noAccount": "Don't have an account?",
+    "registerHere": "Register here"
+  }
+}
+

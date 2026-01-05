@@ -1,0 +1,61 @@
+{
+  "header": {
+    "phone": "Teléfono: +1 234 567 890",
+    "email": "Email: info@nuevainglaterra.com",
+    "address": "Av. Principal 123, Ciudad, País",
+    "whoWeAre": "Quiénes Somos",
+    "academicOffer": "Oferta Académica",
+    "admissions": "Admisiones",
+    "community": "Comunidad",
+    "virtualClassroom": "Aula Virtual"
+  },
+  "home": {
+    "presentialEnrollment": "Matrículas Abiertas 2026",
+    "presentialDescription": "Descubre nuestros cursos presenciales y comienza tu aprendizaje",
+    "seeMore": "Ver Más",
+    "virtualClassroom": "Aula Virtual",
+    "virtualDescription": "Explora nuestra plataforma de cursos en línea",
+    "seeCourses": "Ver Cursos",
+    "digitalTransformation": "Transformación Digital",
+    "transformYourFuture": "Transforma tu Futuro",
+    "transformSubtitle": "Descubre cómo nuestros cursos pueden cambiar tu carrera",
+    "transformDescription": "Únete a miles de estudiantes que han transformado sus vidas y carreras a través de nuestra plataforma de educación online. Aprende a tu ritmo, desde cualquier lugar y obtén las habilidades que necesitas para destacar.",
+    "certificateOnCompletion": "Certificado al finalizar",
+    "unlimitedAccess": "Acceso ilimitado",
+    "unforgettableMoments": "Momentos Inolvidables",
+    "whatStudentsSay": "Lo que dicen nuestros estudiantes",
+    "openEnrollment": "Matrículas Abiertas"
+  },
+  "testimonials": {
+    "anaGarcia": "Ana García",
+    "luisFernandez": "Luis Fernández",
+    "juanMartinez": "Juan Martínez",
+    "mariaRodriguez": "María Rodríguez",
+    "student": "Estudiante",
+    "testimonial1": "Los instructores son expertos en sus campos. He obtenido conocimientos invaluables.",
+    "testimonial2": "La plataforma es intuitiva y fácil de usar. Definitivamente la recomiendo.",
+    "testimonial3": "Excelente plataforma. Los cursos son muy completos y el contenido es de alta calidad.",
+    "testimonial4": "He aprendido habilidades valiosas que aplico en mi trabajo diario. Muy recomendado."
+  },
+  "footer": {
+    "description": "Plataforma de educación online comprometida con tu crecimiento profesional.",
+    "quickLinks": "Enlaces Rápidos",
+    "contact": "Contacto",
+    "copyright": "© 2026 Nueva Inglaterra. Todos los derechos reservados.",
+    "privacy": "Privacidad",
+    "terms": "Términos",
+    "logIn": "Iniciar Sesión"
+  },
+  "login": {
+    "title": "Aula Virtual",
+    "subtitle": "Inicia sesión para acceder a tu plataforma educativa",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "rememberSession": "Recordar sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "signIn": "Iniciar Sesión",
+    "noAccount": "¿No tienes una cuenta?",
+    "registerHere": "Regístrate aquí"
+  }
+}
+
