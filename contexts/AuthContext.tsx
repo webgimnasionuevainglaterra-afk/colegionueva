@@ -92,14 +92,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      // Por ahora, verificamos si el usuario es el super admin por su UID
-      // Más adelante podemos crear una tabla de roles en Supabase
+      // Verificar si el usuario es el super admin por su UID
       if (userId === 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42') {
         setUserRole('super_admin');
-      } else {
-        // Aquí puedes agregar lógica para obtener el rol desde una tabla de usuarios
-        setUserRole('user');
+        return;
       }
+
+      // Verificar si el usuario es un profesor
+      const { data: profesor, error: profesorError } = await supabase
+        .from('profesores')
+        .select('id, is_active')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!profesorError && profesor) {
+        // Si el profesor está inactivo, no permitir acceso
+        if (profesor.is_active === false) {
+          setUserRole(null);
+          return;
+        }
+        setUserRole('profesor');
+        return;
+      }
+
+      // Verificar si el usuario es un estudiante
+      const { data: estudiante, error: estudianteError } = await supabase
+        .from('estudiantes')
+        .select('id, is_active')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!estudianteError && estudiante) {
+        setUserRole('estudiante');
+        return;
+      }
+
+      // Si no es ninguno de los anteriores, verificar si es administrador
+      const { data: admin, error: adminError } = await supabase
+        .from('administrators')
+        .select('id, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!adminError && admin) {
+        setUserRole(admin.role === 'super_admin' ? 'super_admin' : 'administrator');
+        return;
+      }
+
+      // Por defecto, usuario sin rol específico
+      setUserRole('user');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole(null);
@@ -149,6 +190,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.user) {
+      // Verificar si el usuario es un estudiante y si está activo
+      try {
+        const { data: estudiante, error: estudianteError } = await supabase
+          .from('estudiantes')
+          .select('is_active')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        // Si es un estudiante y está inactivo, cerrar sesión y lanzar error
+        if (estudiante && estudiante.is_active === false) {
+          await supabase.auth.signOut();
+          throw new Error('Tu cuenta ha sido desactivada. Por favor, contacta al administrador para más información.');
+        }
+      } catch (checkError: any) {
+        // Si el error es el que lanzamos nosotros (estudiante inactivo), propagarlo
+        if (checkError.message?.includes('desactivada')) {
+          throw checkError;
+        }
+        // Si es otro error (por ejemplo, no es estudiante), continuar normalmente
+        console.warn('Error al verificar estado del estudiante:', checkError);
+      }
+
       await fetchUserRole(data.user.id);
     }
   };

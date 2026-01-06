@@ -11,24 +11,38 @@ interface Course {
   nivel: string;
 }
 
-interface CreateTeacherFormProps {
-  onClose: () => void;
-  onTeacherCreated?: () => void;
+interface Teacher {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+  foto_url: string | null;
+  numero_celular: string | null;
+  indicativo_pais: string;
+  is_active: boolean;
+  cursos: Course[];
 }
 
-export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateTeacherFormProps) {
+interface EditTeacherFormProps {
+  teacher: Teacher;
+  onClose: () => void;
+  onTeacherUpdated?: () => void;
+}
+
+export default function EditTeacherForm({ teacher, onClose, onTeacherUpdated }: EditTeacherFormProps) {
   const [formData, setFormData] = useState({
-    nombre: '',
-    apellido: '',
-    email: '',
+    nombre: teacher.nombre,
+    apellido: teacher.apellido,
+    email: teacher.email,
     password: '',
-    numero_celular: '',
-    indicativo_pais: '+57',
+    numero_celular: teacher.numero_celular || '',
+    indicativo_pais: teacher.indicativo_pais || '+57',
     foto: null as File | null,
-    cursos_ids: [] as string[],
+    cursos_ids: teacher.cursos.map(c => c.id),
+    is_active: teacher.is_active,
   });
   const [courses, setCourses] = useState<Course[]>([]);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(teacher.foto_url);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -42,7 +56,6 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
           const result = await response.json();
           const coursesData = result.data || [];
           
-          // Asegurar ordenamiento adicional en el cliente (por si acaso)
           const sortedCourses = [...coursesData].sort((a, b) => {
             const getGradoNumber = (nombre: string): number => {
               const match = nombre.match(/\b(\d+)\b/);
@@ -78,10 +91,10 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
@@ -119,7 +132,7 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
 
     try {
       // 1. Subir foto si hay una nueva
-      let fotoUrl = null;
+      let fotoUrl = teacher.foto_url;
       if (formData.foto) {
         try {
           const uploadFormData = new FormData();
@@ -134,67 +147,57 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
             const uploadData = await uploadResponse.json();
             fotoUrl = uploadData.url;
           } else {
-            console.warn('Error al subir foto, continuando sin foto');
+            console.warn('Error al subir foto, continuando con la foto actual');
           }
         } catch (uploadErr) {
-          console.warn('Error al subir foto, continuando sin foto:', uploadErr);
+          console.warn('Error al subir foto, continuando con la foto actual:', uploadErr);
         }
       }
 
-      // 2. Obtener sesión para el token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // 2. Actualizar profesor
+      const updateData: any = {
+        id: teacher.id,
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        email: formData.email,
+        foto_url: fotoUrl,
+        numero_celular: formData.numero_celular || null,
+        indicativo_pais: formData.indicativo_pais,
+        cursos_ids: formData.cursos_ids,
+        is_active: formData.is_active,
+      };
 
-      // 3. Crear profesor
-      const createResponse = await fetch('/api/teachers/create-teacher', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          nombre: formData.nombre,
-          apellido: formData.apellido,
-          email: formData.email,
-          password: formData.password,
-          foto_url: fotoUrl,
-          numero_celular: formData.numero_celular || null,
-          indicativo_pais: formData.indicativo_pais,
-          cursos_ids: formData.cursos_ids,
-        }),
-      });
-
-      const contentType = createResponse.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await createResponse.text();
-        console.error('Respuesta no JSON:', text);
-        throw new Error(`Error del servidor: ${createResponse.status} ${createResponse.statusText}`);
+      // Solo incluir password si se proporcionó
+      if (formData.password && formData.password.trim() !== '') {
+        updateData.password = formData.password;
       }
 
-      const createData = await createResponse.json();
+      const updateResponse = await fetch('/api/teachers/update-teacher', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
 
-      if (!createResponse.ok) {
-        throw new Error(createData.error || 'Error al crear el profesor');
+      const contentType = updateResponse.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await updateResponse.text();
+        console.error('Respuesta no JSON:', text);
+        throw new Error(`Error del servidor: ${updateResponse.status} ${updateResponse.statusText}`);
+      }
+
+      const updateResult = await updateResponse.json();
+
+      if (!updateResponse.ok) {
+        throw new Error(updateResult.error || 'Error al actualizar el profesor');
       }
 
       setSuccess(true);
       
-      if (onTeacherCreated) {
-        onTeacherCreated();
+      if (onTeacherUpdated) {
+        onTeacherUpdated();
       }
-
-      // Limpiar formulario
-      setFormData({
-        nombre: '',
-        apellido: '',
-        email: '',
-        password: '',
-        numero_celular: '',
-        indicativo_pais: '+57',
-        foto: null,
-        cursos_ids: [],
-      });
-      setPreview(null);
 
       // Cerrar modal después de 2 segundos
       setTimeout(() => {
@@ -202,8 +205,8 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
         onClose();
       }, 2000);
     } catch (err: any) {
-      console.error('Error al crear profesor:', err);
-      setError(err.message || 'Error al crear el profesor');
+      console.error('Error al actualizar profesor:', err);
+      setError(err.message || 'Error al actualizar el profesor');
     } finally {
       setLoading(false);
     }
@@ -213,7 +216,7 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Crear Profesor</h2>
+          <h2 className="modal-title">Editar Profesor</h2>
           <button className="modal-close-btn" onClick={onClose}>
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -237,7 +240,7 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Profesor creado exitosamente</span>
+                <span>Profesor actualizado exitosamente</span>
               </div>
             )}
 
@@ -248,23 +251,23 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
                   {preview ? (
                     <>
                       <Image
-                      src={preview}
-                      alt="Preview"
-                      width={120}
-                      height={120}
-                      className="preview-image"
-                    />
-                    <button
-                      type="button"
-                      className="remove-photo-btn"
-                      onClick={() => {
-                        setPreview(null);
-                        setFormData(prev => ({ ...prev, foto: null }));
-                      }}
-                      disabled={loading}
-                    >
-                      ✕
-                    </button>
+                        src={preview}
+                        alt="Preview"
+                        width={120}
+                        height={120}
+                        className="preview-image"
+                      />
+                      <button
+                        type="button"
+                        className="remove-photo-btn"
+                        onClick={() => {
+                          setPreview(null);
+                          setFormData(prev => ({ ...prev, foto: null }));
+                        }}
+                        disabled={loading}
+                      >
+                        ✕
+                      </button>
                     </>
                   ) : (
                     <div className="photo-placeholder">
@@ -363,19 +366,32 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
             </div>
 
             <div className="form-group">
-              <label htmlFor="password" className="form-label">Contraseña *</label>
+              <label htmlFor="password" className="form-label">Nueva Contraseña (dejar vacío para no cambiar)</label>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                required
                 minLength={6}
                 disabled={loading}
                 className="form-input"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 6 caracteres (opcional)"
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Estado</label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={formData.is_active}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                />
+                <span>Profesor activo</span>
+              </label>
             </div>
 
             <div className="form-group">
@@ -413,7 +429,7 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
                 className="btn btn-primary"
                 disabled={loading}
               >
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </form>
@@ -422,4 +438,3 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
     </div>
   );
 }
-

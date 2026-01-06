@@ -59,6 +59,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Debug: verificar foto_url en los estudiantes
+    if (estudiantes && estudiantes.length > 0) {
+      console.log('📸 Estudiantes obtenidos con foto_url:', estudiantes.map((e: any) => ({
+        id: e.id,
+        nombre: `${e.nombre} ${e.apellido}`,
+        foto_url: e.foto_url,
+        tiene_foto: !!e.foto_url && e.foto_url.trim() !== ''
+      })));
+    }
+
     return NextResponse.json(
       { data: estudiantes || [] },
       { status: 200 }

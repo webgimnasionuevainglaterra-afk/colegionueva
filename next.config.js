@@ -5,6 +5,16 @@ const nextConfig = {
   experimental: {
     turbo: undefined,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'pdhvrvawsguwnbnfokaa.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 }
 
 module.exports = nextConfig

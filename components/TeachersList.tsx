@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import '../app/css/administrators-list.css';
+import EditTeacherForm from './EditTeacherForm';
 
 interface Course {
   id: string;
@@ -28,6 +29,7 @@ export default function TeachersList() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
   useEffect(() => {
     fetchTeachers();
@@ -73,6 +75,33 @@ export default function TeachersList() {
   const formatPhone = (indicativo: string, numero: string | null) => {
     if (!numero) return 'N/A';
     return `${indicativo} ${numero}`;
+  };
+
+  const handleDelete = async (teacher: Teacher) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar a ${teacher.nombre} ${teacher.apellido}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/teachers/delete-teacher?id=${teacher.id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al eliminar el profesor');
+      }
+
+      alert('Profesor eliminado exitosamente');
+      fetchTeachers(); // Recargar la lista
+    } catch (err: any) {
+      console.error('Error al eliminar profesor:', err);
+      alert(err.message || 'Error al eliminar el profesor');
+    }
+  };
+
+  const handleEdit = (teacher: Teacher) => {
+    setEditingTeacher(teacher);
   };
 
   if (loading) {
@@ -188,10 +217,7 @@ export default function TeachersList() {
                       <button
                         className="action-btn edit-btn"
                         title="Editar profesor"
-                        onClick={() => {
-                          // TODO: Implementar edición
-                          alert('Funcionalidad de edición próximamente');
-                        }}
+                        onClick={() => handleEdit(teacher)}
                       >
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -200,12 +226,7 @@ export default function TeachersList() {
                       <button
                         className="action-btn delete-btn"
                         title="Eliminar profesor"
-                        onClick={() => {
-                          // TODO: Implementar eliminación
-                          if (confirm(`¿Estás seguro de que deseas eliminar a ${teacher.nombre} ${teacher.apellido}?`)) {
-                            alert('Funcionalidad de eliminación próximamente');
-                          }
-                        }}
+                        onClick={() => handleDelete(teacher)}
                       >
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -218,6 +239,18 @@ export default function TeachersList() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modal de edición */}
+      {editingTeacher && (
+        <EditTeacherForm
+          teacher={editingTeacher}
+          onClose={() => setEditingTeacher(null)}
+          onTeacherUpdated={() => {
+            setEditingTeacher(null);
+            fetchTeachers();
+          }}
+        />
       )}
     </div>
   );

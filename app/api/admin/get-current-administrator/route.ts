@@ -50,50 +50,100 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener los datos del administrador desde la tabla
+    // Primero verificar si es administrador
     const { data: adminData, error: adminError } = await supabaseAdmin
       .from('administrators')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (adminError || !adminData) {
-      // Si no está en la tabla administrators, devolver datos básicos del usuario
+    if (!adminError && adminData) {
+      // Determinar el rol a mostrar
+      let roleDisplay = 'Administrador';
+      if (user.id === 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42') {
+        roleDisplay = 'Super administrador';
+      } else if (adminData.role) {
+        roleDisplay = adminData.role === 'administrator' ? 'Administrador' : adminData.role;
+      }
+
       return NextResponse.json(
         { 
           success: true,
           data: {
-            id: user.id,
-            email: user.email,
-            nombre: user.email?.split('@')[0] || 'Usuario',
-            apellido: '',
-            foto_url: null,
-            role: 'user',
+            id: adminData.id,
+            email: adminData.email,
+            nombre: adminData.nombre,
+            apellido: adminData.apellido,
+            foto_url: adminData.foto_url,
+            role: roleDisplay,
+            is_online: adminData.is_online || false,
           }
         },
         { status: 200 }
       );
     }
 
-    // Determinar el rol a mostrar
-    let roleDisplay = 'Administrador';
-    if (user.id === 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42') {
-      roleDisplay = 'Super administrador';
-    } else if (adminData.role) {
-      roleDisplay = adminData.role === 'administrator' ? 'Administrador' : adminData.role;
+    // Si no es administrador, verificar si es profesor
+    const { data: profesorData, error: profesorError } = await supabaseAdmin
+      .from('profesores')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profesorError && profesorData) {
+      return NextResponse.json(
+        { 
+          success: true,
+          data: {
+            id: profesorData.id,
+            email: profesorData.email,
+            nombre: profesorData.nombre,
+            apellido: profesorData.apellido,
+            foto_url: profesorData.foto_url,
+            role: 'Profesor',
+            is_online: true,
+          }
+        },
+        { status: 200 }
+      );
     }
 
+    // Si no es administrador ni profesor, verificar si es estudiante
+    const { data: estudianteData, error: estudianteError } = await supabaseAdmin
+      .from('estudiantes')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!estudianteError && estudianteData) {
+      return NextResponse.json(
+        { 
+          success: true,
+          data: {
+            id: estudianteData.id,
+            email: estudianteData.correo_electronico,
+            nombre: estudianteData.nombre,
+            apellido: estudianteData.apellido,
+            foto_url: estudianteData.foto_url,
+            role: 'Estudiante',
+            is_online: true,
+          }
+        },
+        { status: 200 }
+      );
+    }
+
+    // Si no está en ninguna tabla, devolver datos básicos del usuario
     return NextResponse.json(
       { 
         success: true,
         data: {
-          id: adminData.id,
-          email: adminData.email,
-          nombre: adminData.nombre,
-          apellido: adminData.apellido,
-          foto_url: adminData.foto_url,
-          role: roleDisplay,
-          is_online: adminData.is_online || false,
+          id: user.id,
+          email: user.email,
+          nombre: user.email?.split('@')[0] || 'Usuario',
+          apellido: '',
+          foto_url: null,
+          role: 'Usuario',
         }
       },
       { status: 200 }

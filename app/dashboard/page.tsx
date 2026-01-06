@@ -14,6 +14,8 @@ import ContentManager from '@/components/ContentManager';
 import CreateTeacherForm from '@/components/CreateTeacherForm';
 import TeachersList from '@/components/TeachersList';
 import StudentsManager from '@/components/StudentsManager';
+import TeacherProgramsView from '@/components/TeacherProgramsView';
+import TeacherReportsView from '@/components/TeacherReportsView';
 import '../css/dashboard.css';
 
 interface AdministratorInfo {
@@ -276,7 +278,6 @@ export default function Dashboard() {
     { id: 'administradores', label: 'Crear Administradores' },
     { id: 'profesores', label: 'Crear Profesores' },
     { id: 'alumnos', label: 'Crear Alumnos' },
-    { id: 'acudientes', label: 'Gestionar Acudientes' },
   ];
 
   const handleMenuClick = (menuId: string) => {
@@ -296,10 +297,15 @@ export default function Dashboard() {
     { id: 'gestionar-estudiantes', label: 'Gestionar Estudiantes' },
   ];
 
-  const reportsMenuItems = [
-    { id: 'reportes-profesores', label: 'Reportes profesores' },
-    { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
-  ];
+  // Reportes diferentes según el rol
+  const reportsMenuItems = userRole === 'profesor' 
+    ? [
+        { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
+      ]
+    : [
+        { id: 'reportes-profesores', label: 'Reportes profesores' },
+        { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
+      ];
 
   return (
     <div className="dashboard-container">
@@ -333,6 +339,7 @@ export default function Dashboard() {
           </div>
           <div className="header-right">
             <nav className={`header-menu ${isMobileMenuOpen ? 'mobile-menu-open' : ''}`}>
+              {/* Dashboard visible para todos */}
               <button
                 className={`menu-item ${activeMenu === 'dashboard' ? 'active' : ''}`}
                 onClick={() => {
@@ -342,39 +349,43 @@ export default function Dashboard() {
               >
                 Dashboard
               </button>
-              <div className="users-menu-dropdown">
-                <button
-                  className={`menu-item ${isUsersMenuOpen ? 'active' : ''}`}
-                  onClick={() => setIsUsersMenuOpen(!isUsersMenuOpen)}
-                >
-                  Gestionar Usuarios
-                  <svg
-                    className="dropdown-arrow"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    style={{
-                      transform: isUsersMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                    }}
+              {/* Solo mostrar Gestionar Usuarios si no es profesor */}
+              {userRole !== 'profesor' && (
+                <div className="users-menu-dropdown">
+                  <button
+                    className={`menu-item ${isUsersMenuOpen ? 'active' : ''}`}
+                    onClick={() => setIsUsersMenuOpen(!isUsersMenuOpen)}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {isUsersMenuOpen && (
-                  <div className="users-menu">
-                    {usersMenuItems.map((item) => (
-                      <button
-                        key={item.id}
-                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
-                        onClick={() => handleMenuClick(item.id)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    Gestionar Usuarios
+                    <svg
+                      className="dropdown-arrow"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      style={{
+                        transform: isUsersMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                      }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {isUsersMenuOpen && (
+                    <div className="users-menu">
+                      {usersMenuItems.map((item) => (
+                        <button
+                          key={item.id}
+                          className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                          onClick={() => handleMenuClick(item.id)}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Programas Educativos - visible para todos */}
               <div className="programs-menu-dropdown">
                 <button
                   className={`menu-item ${isProgramsMenuOpen ? 'active' : ''}`}
@@ -412,43 +423,47 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <div className="admissions-menu-dropdown">
-                <button
-                  className={`menu-item ${isAdmissionsMenuOpen ? 'active' : ''}`}
-                  onClick={() => setIsAdmissionsMenuOpen(!isAdmissionsMenuOpen)}
-                >
-                  Admisiones
-                  <svg
-                    className="dropdown-arrow"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    style={{
-                      transform: isAdmissionsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                    }}
+              {/* Solo mostrar Admisiones si no es profesor */}
+              {userRole !== 'profesor' && (
+                <div className="admissions-menu-dropdown">
+                  <button
+                    className={`menu-item ${isAdmissionsMenuOpen ? 'active' : ''}`}
+                    onClick={() => setIsAdmissionsMenuOpen(!isAdmissionsMenuOpen)}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {isAdmissionsMenuOpen && (
-                  <div className="users-menu">
-                    {admissionsMenuItems.map((item) => (
-                      <button
-                        key={item.id}
-                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
-                        onClick={() => {
-                          setActiveMenu(item.id);
-                          setIsAdmissionsMenuOpen(false);
-                          setIsMobileMenuOpen(false);
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    Admisiones
+                    <svg
+                      className="dropdown-arrow"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      style={{
+                        transform: isAdmissionsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s',
+                      }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {isAdmissionsMenuOpen && (
+                    <div className="users-menu">
+                      {admissionsMenuItems.map((item) => (
+                        <button
+                          key={item.id}
+                          className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveMenu(item.id);
+                            setIsAdmissionsMenuOpen(false);
+                            setIsMobileMenuOpen(false);
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Reportes - visible para todos, pero con opciones diferentes */}
               <div className="reports-menu-dropdown">
                 <button
                   className={`menu-item ${isReportsMenuOpen ? 'active' : ''}`}
@@ -602,6 +617,8 @@ export default function Dashboard() {
                 />
               )}
             </div>
+          ) : activeMenu === 'grados' && userRole === 'profesor' ? (
+            <TeacherProgramsView />
           ) : activeMenu === 'grados' ? (
             <div className="administrators-section">
               <div className="administrators-actions">
@@ -654,11 +671,32 @@ export default function Dashboard() {
             </div>
           ) : activeMenu === 'gestionar-estudiantes' || activeMenu === 'alumnos' ? (
             <StudentsManager />
+          ) : activeMenu === 'reportes-estudiantes' && userRole === 'profesor' ? (
+            <TeacherReportsView />
+          ) : activeMenu === 'dashboard' ? (
+            <div className="dashboard-welcome">
+              <h1 className="welcome-title">
+                {userRole === 'profesor' 
+                  ? 'Bienvenido al Panel del Profesor' 
+                  : 'Bienvenido al Panel de Administración'}
+              </h1>
+              <p className="welcome-description">
+                {userRole === 'profesor'
+                  ? 'Selecciona una opción del menú superior para gestionar tus cursos y ver reportes de estudiantes.'
+                  : 'Selecciona una opción del menú superior para comenzar a gestionar la plataforma.'}
+              </p>
+            </div>
           ) : (
             <div className="dashboard-welcome">
-              <h1 className="welcome-title">Bienvenido al Panel de Administración</h1>
+              <h1 className="welcome-title">
+                {userRole === 'profesor' 
+                  ? 'Bienvenido al Panel del Profesor' 
+                  : 'Bienvenido al Panel de Administración'}
+              </h1>
               <p className="welcome-description">
-                Selecciona una opción del menú superior para comenzar a gestionar la plataforma.
+                {userRole === 'profesor'
+                  ? 'Selecciona una opción del menú superior para gestionar tus cursos y ver reportes de estudiantes.'
+                  : 'Selecciona una opción del menú superior para comenzar a gestionar la plataforma.'}
               </p>
             </div>
           )}

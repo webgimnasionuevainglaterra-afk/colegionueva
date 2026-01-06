@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
       correo: body.correo_electronico,
       sexo: body.sexo,
       curso_id: body.curso_id,
+      foto_url: body.foto_url,
+      tiene_foto: !!body.foto_url,
       tiene_acudiente: !!(body.acudiente_nombre && body.acudiente_correo_electronico)
     });
 
@@ -151,16 +153,24 @@ export async function POST(request: NextRequest) {
       user_id: authUser.user.id,
       nombre,
       apellido,
+      foto_url_recibida: foto_url,
+      foto_url_en_data: estudianteData.foto_url,
+      tiene_foto: !!estudianteData.foto_url,
+      foto_url_type: typeof estudianteData.foto_url,
       tiene_sexo: !!estudianteData.sexo,
       sexo: estudianteData.sexo,
       tiene_acudiente: !!acudienteId
     });
 
+    console.log('💾 Insertando estudiante con foto_url:', estudianteData.foto_url);
+
     const { data: estudiante, error: estudianteError } = await supabaseAdmin
       .from('estudiantes')
       .insert(estudianteData)
-      .select()
+      .select('*')
       .single();
+    
+    console.log('💾 Estudiante insertado, foto_url en BD:', estudiante?.foto_url);
 
     if (estudianteError) {
       // Si falla, eliminar el usuario de auth creado
@@ -179,6 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Estudiante creado exitosamente:', estudiante.id);
+    console.log('📸 Foto URL en estudiante creado:', estudiante.foto_url);
 
     // Asignar estudiante al curso si se proporciona y es válido
     if (curso_id && curso_id.trim() !== '') {
