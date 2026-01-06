@@ -13,6 +13,7 @@ import CoursesList from '@/components/CoursesList';
 import ContentManager from '@/components/ContentManager';
 import CreateTeacherForm from '@/components/CreateTeacherForm';
 import TeachersList from '@/components/TeachersList';
+import StudentsManager from '@/components/StudentsManager';
 import '../css/dashboard.css';
 
 interface AdministratorInfo {
@@ -27,6 +28,20 @@ export default function Dashboard() {
   const { user, loading, userRole, signOut } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
+  const [dashboardError, setDashboardError] = useState<Error | null>(null);
+
+  // Manejo de errores global
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Error capturado:', event.error);
+      if (event.error) {
+        setDashboardError(event.error);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUsersMenuOpen, setIsUsersMenuOpen] = useState(false);
   const [isProgramsMenuOpen, setIsProgramsMenuOpen] = useState(false);
@@ -44,10 +59,60 @@ export default function Dashboard() {
   const [loadingAdminInfo, setLoadingAdminInfo] = useState(true);
 
   useEffect(() => {
+    console.log('🔍 Dashboard montado, user:', user?.id, 'loading:', loading);
     if (!loading && !user) {
+      console.log('⚠️ No hay usuario, redirigiendo a /aula-virtual');
       router.push('/aula-virtual');
     }
   }, [user, loading, router]);
+
+  // Error boundary manual
+  if (dashboardError) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        padding: '2rem',
+        background: '#1f2937',
+        color: 'white'
+      }}>
+        <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#ef4444' }}>
+          Error en el Dashboard
+        </h1>
+        <pre style={{
+          background: '#374151',
+          padding: '1rem',
+          borderRadius: '8px',
+          maxWidth: '800px',
+          overflow: 'auto',
+          whiteSpace: 'pre-wrap'
+        }}>
+          {dashboardError.message}
+          {dashboardError.stack && `\n\n${dashboardError.stack}`}
+        </pre>
+        <button
+          onClick={() => {
+            setDashboardError(null);
+            window.location.reload();
+          }}
+          style={{
+            marginTop: '1rem',
+            padding: '0.75rem 1.5rem',
+            background: '#2563eb',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Recargar página
+        </button>
+      </div>
+    );
+  }
 
   // Actualizar estado online cuando el usuario está conectado
   useEffect(() => {
@@ -100,14 +165,24 @@ export default function Dashboard() {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        if (!token) {
+        console.log('🔍 Iniciando fetchAdminInfo para usuario:', user.id);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Error al obtener sesión:', sessionError);
           setLoadingAdminInfo(false);
           return;
         }
 
+        const token = session?.access_token;
+
+        if (!token) {
+          console.warn('⚠️ No hay token de sesión disponible');
+          setLoadingAdminInfo(false);
+          return;
+        }
+
+        console.log('📡 Llamando a /api/admin/get-current-administrator');
         const response = await fetch('/api/admin/get-current-administrator', {
           method: 'GET',
           headers: {
@@ -116,8 +191,11 @@ export default function Dashboard() {
           },
         });
 
+        console.log('📥 Respuesta recibida:', response.status, response.statusText);
+
         if (response.ok) {
           const result = await response.json();
+          console.log('✅ Datos del administrador:', result);
           if (result.success && result.data) {
             setAdminInfo({
               nombre: result.data.nombre || 'Usuario',
@@ -127,9 +205,13 @@ export default function Dashboard() {
               is_online: result.data.is_online !== undefined ? result.data.is_online : true,
             });
           }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Error en respuesta:', response.status, errorText);
         }
-      } catch (error) {
-        console.error('Error al obtener información del administrador:', error);
+      } catch (error: any) {
+        console.error('❌ Error al obtener información del administrador:', error);
+        console.error('❌ Stack trace:', error.stack);
       } finally {
         setLoadingAdminInfo(false);
       }
@@ -207,13 +289,11 @@ export default function Dashboard() {
   };
 
   const programsMenuItems = [
-    { id: 'grados', label: 'Crear Cursos' },
-    { id: 'contenidos', label: 'Crear Contenidos' },
+    { id: 'grados', label: 'Gestionar Cursos' },
   ];
 
   const admissionsMenuItems = [
-    { id: 'alumnos-presenciales', label: 'Alumnos presenciales' },
-    { id: 'alumnos-online', label: 'Alumnos online' },
+    { id: 'gestionar-estudiantes', label: 'Gestionar Estudiantes' },
   ];
 
   const reportsMenuItems = [
@@ -572,8 +652,8 @@ export default function Dashboard() {
                 />
               )}
             </div>
-          ) : activeMenu === 'contenidos' ? (
-            <ContentManager />
+          ) : activeMenu === 'gestionar-estudiantes' || activeMenu === 'alumnos' ? (
+            <StudentsManager />
           ) : (
             <div className="dashboard-welcome">
               <h1 className="welcome-title">Bienvenido al Panel de Administración</h1>

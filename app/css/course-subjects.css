@@ -145,7 +145,7 @@
 .subject-name {
   font-family: var(--font-nunito-sans), sans-serif;
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 1.5rem;
   color: #1f2937;
   margin: 0;
   flex: 1;
@@ -157,6 +157,25 @@
   color: #6b7280;
   line-height: 1.5;
   margin: 0;
+  max-height: 160px; /* Limitar altura visible */
+  overflow-y: auto;  /* Scroll vertical para texto largo */
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+
+.subject-description::-webkit-scrollbar {
+  width: 6px;
+}
+
+.subject-description::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.subject-description::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 10px;
 }
 
 .subject-meta {
@@ -659,8 +678,8 @@
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-color: #2563eb;
   color: #2563eb;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
 }
 
 .file-icon {
@@ -675,12 +694,12 @@
 }
 
 .file-pdf-link .file-icon {
-  color: #dc2626;
+  color: #16a34a;
 }
 
 .file-pdf-link:hover .file-icon {
-  color: #b91c1c;
-  transform: scale(1.1);
+  color: #15803d;
+  transform: scale(1.02);
 }
 
 .file-other-link .file-icon {
@@ -689,7 +708,7 @@
 
 .file-other-link:hover .file-icon {
   color: #475569;
-  transform: scale(1.1);
+  transform: scale(1.02);
 }
 
 .file-icon svg {
@@ -724,13 +743,13 @@
 
 /* Estilos específicos para PDF */
 .file-pdf-link {
-  border-color: #fca5a5;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #86efac;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
 }
 
 .file-pdf-link:hover {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #16a34a;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
 }
 
 /* Estilos específicos para otros archivos */

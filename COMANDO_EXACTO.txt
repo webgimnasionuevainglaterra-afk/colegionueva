@@ -1,0 +1,26 @@
+==========================================
+COMANDO EXACTO PARA EJECUTAR:
+==========================================
+
+Abre Terminal en tu Mac y ejecuta ESTOS comandos EXACTOS:
+
+cd /Applications/XAMPP/xamppfiles/htdocs/ColegioNueva
+
+HOSTNAME=localhost npm run dev
+
+==========================================
+ESPERA A VER:
+
+✓ Ready in Xs
+- Local:        http://localhost:3000
+
+==========================================
+LUEGO ABRE EN NAVEGADOR:
+
+http://localhost:3000
+
+==========================================
+SI VES ERRORES, COPIA Y PEGA TODO EL MENSAJE AQUÍ
+
+==========================================
+

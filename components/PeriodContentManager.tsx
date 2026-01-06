@@ -66,6 +66,32 @@ export default function PeriodContentManager({
   const [selectedSubtemaDescripcion, setSelectedSubtemaDescripcion] = useState<string>('');
   const [editingTema, setEditingTema] = useState<Tema | null>(null);
   const [editingSubtema, setEditingSubtema] = useState<Subtema | null>(null);
+  const [editingContenido, setEditingContenido] = useState<{ item: Contenido; subtemaNombre?: string; subtemaDescripcion?: string } | null>(null);
+  const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
+  const [selectedSubtemaForQuiz, setSelectedSubtemaForQuiz] = useState<string | null>(null);
+  const [quizToEdit, setQuizToEdit] = useState<any | null>(null);
+  const [isViewQuizzesModalOpen, setIsViewQuizzesModalOpen] = useState(false);
+  const [selectedSubtemaForViewQuizzes, setSelectedSubtemaForViewQuizzes] = useState<string | null>(null);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+  // Cargar quizes de un subtema
+  const fetchQuizzes = async (subtemaId: string) => {
+    setLoadingQuizzes(true);
+    try {
+      const response = await fetch(`/api/quizzes/get-quiz?subtema_id=${subtemaId}`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al cargar quizes');
+      }
+      setQuizzes(result.data || []);
+    } catch (err: any) {
+      console.error('Error al cargar quizes:', err);
+      setQuizzes([]);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
 
   // Cargar temas
   const fetchTemas = async () => {
@@ -343,6 +369,31 @@ export default function PeriodContentManager({
     }
   };
 
+  // Actualizar subtema
+  const handleUpdateSubtema = async (id: string, nombre: string, descripcion: string) => {
+    try {
+      const response = await fetch('/api/subtemas/update-subtema', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          nombre,
+          descripcion,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al actualizar subtema');
+      }
+      if (selectedTema) {
+        await fetchSubtemas(selectedTema);
+      }
+      setEditingSubtema(null);
+    } catch (err: any) {
+      alert(err.message || 'Error al actualizar subtema');
+    }
+  };
+
   // Eliminar subtema
   const handleDeleteSubtema = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este subtema? Se eliminará todo su contenido.')) {
@@ -578,7 +629,7 @@ export default function PeriodContentManager({
   };
 
   // Eliminar contenido
-  const handleDeleteContenido = async (id: string, subtemaId: string) => {
+  const handleDeleteContenido = async (id: string, subtemaId?: string) => {
     if (!confirm('¿Estás seguro de eliminar este contenido?')) {
       return;
     }
@@ -602,25 +653,27 @@ export default function PeriodContentManager({
         throw new Error(text || 'Error al eliminar contenido');
       }
       
-      // Actualizar el estado local
-      setContenidoPorSubtema(prev => {
-        const updated = { ...prev };
-        if (updated[subtemaId]) {
-          updated[subtemaId] = updated[subtemaId].filter(item => item.id !== id);
-          // Reordenar los elementos restantes
-          updated[subtemaId] = updated[subtemaId].map((item, index) => ({
-            ...item,
-            orden: index,
-          }));
-          // Actualizar el orden en la base de datos
-          if (updated[subtemaId].length > 0) {
-            handleUpdateOrden(subtemaId, updated[subtemaId]);
+      // Actualizar el estado local si tenemos el subtemaId
+      if (subtemaId) {
+        setContenidoPorSubtema(prev => {
+          const updated = { ...prev };
+          if (updated[subtemaId]) {
+            updated[subtemaId] = updated[subtemaId].filter(item => item.id !== id);
+            // Reordenar los elementos restantes
+            updated[subtemaId] = updated[subtemaId].map((item, index) => ({
+              ...item,
+              orden: index,
+            }));
+            // Actualizar el orden en la base de datos
+            if (updated[subtemaId].length > 0) {
+              handleUpdateOrden(subtemaId, updated[subtemaId]);
+            }
           }
-        }
-        return updated;
-      });
+          return updated;
+        });
+      }
 
-      // Recargar subtemas para actualizar
+      // Recargar subtemas para asegurar sincronización
       if (selectedTema) {
         await fetchSubtemas(selectedTema);
       }
@@ -857,25 +910,26 @@ export default function PeriodContentManager({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 12h16M4 16h16" />
                               </svg>
                             </div>
-                            <span className="contenido-card-order">#{index + 1}</span>
+                            {/* Botón para editar este contenido (video + archivos) */}
                             <button
-                              className="action-btn delete-btn"
-                              onClick={() => handleDeleteContenido(item.id, subtema.id)}
-                              title="Eliminar contenido"
+                              className="action-btn edit-btn"
+                              onClick={() => {
+                                setEditingContenido({
+                                  item,
+                                  subtemaNombre: subtema.nombre,
+                                  subtemaDescripcion: subtema.descripcion,
+                                });
+                              }}
+                              title="Editar contenido (video y archivos)"
                               style={{ marginLeft: 'auto', width: '32px', height: '32px' }}
                             >
                               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" />
                               </svg>
                             </button>
                           </div>
                           
                           <div className="contenido-card-body">
-                            <h4 className="contenido-card-title">{item.titulo}</h4>
-                            
-                            {item.descripcion && (
-                              <p className="contenido-card-description">{item.descripcion}</p>
-                            )}
 
                             {/* Mostrar video si existe */}
                             {item.url && getYouTubeEmbedUrl(item.url) && (
@@ -982,20 +1036,65 @@ export default function PeriodContentManager({
                 </div>
               )}
               <div className="subject-actions">
+                {/* 1. Cámara: subir/gestionar contenido del subtema */}
                 <button
-                  className="action-btn edit-btn"
+                  className="action-btn subjects-btn"
                   onClick={() => {
                     setSelectedSubtema(subtema.id);
                     setSelectedSubtemaNombre(subtema.nombre);
                     setSelectedSubtemaDescripcion(subtema.descripcion || '');
                     setIsCreateContenidoModalOpen(true);
                   }}
-                  title="Agregar contenido (video y archivos)"
+                  title="Contenido del subtema (video y archivos)"
                 >
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h4l2-2h6l2 2h4v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                    <circle cx="12" cy="13" r="3" />
                   </svg>
                 </button>
+                {/* 2. Examen */}
+                <button
+                  className="action-btn subjects-btn"
+                  onClick={() => {
+                    setSelectedSubtemaForQuiz(subtema.id);
+                    setQuizToEdit(null);
+                    setIsCreateQuizModalOpen(true);
+                  }}
+                  title="Crear/Editar examen del subtema"
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4h10a1 1 0 011 1v15l-4-2-4 2-4-2-4 2V5a1 1 0 011-1h4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 8h6M9 12h3" />
+                  </svg>
+                </button>
+                {/* 2.5. Ver quizes creados */}
+                <button
+                  className="action-btn subjects-btn"
+                  onClick={async () => {
+                    setSelectedSubtemaForViewQuizzes(subtema.id);
+                    setIsViewQuizzesModalOpen(true);
+                    await fetchQuizzes(subtema.id);
+                  }}
+                  title="Ver quizes creados del subtema"
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+                {/* 3. Editar subtema */}
+                <button
+                  className="action-btn edit-btn"
+                  onClick={() => {
+                    setEditingSubtema(subtema);
+                  }}
+                  title="Editar subtema"
+                >
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" />
+                  </svg>
+                </button>
+                {/* 4. Eliminar subtema */}
                 <button
                   className="action-btn delete-btn"
                   onClick={() => handleDeleteSubtema(subtema.id)}
@@ -1016,6 +1115,14 @@ export default function PeriodContentManager({
         <CreateSubtemaModal
           onClose={() => setIsCreateSubtemaModalOpen(false)}
           onCreate={handleCreateSubtema}
+        />
+      )}
+      {/* Modal editar subtema */}
+      {editingSubtema && (
+        <EditSubtemaModal
+          subtema={editingSubtema}
+          onClose={() => setEditingSubtema(null)}
+          onUpdate={handleUpdateSubtema}
         />
       )}
     </div>
@@ -1311,6 +1418,166 @@ export default function PeriodContentManager({
           subtemaDescripcion={selectedSubtemaDescripcion}
         />
       )}
+      {/* Modal editar contenido */}
+      {editingContenido && (
+        <EditContenidoModal
+          contenido={editingContenido.item}
+          subtemaNombre={editingContenido.subtemaNombre}
+          subtemaDescripcion={editingContenido.subtemaDescripcion}
+          onClose={() => setEditingContenido(null)}
+          onUpdated={async () => {
+            if (selectedTema) {
+              await fetchSubtemas(selectedTema);
+            }
+          }}
+        />
+      )}
+
+      {/* Modal crear/editar quiz */}
+      {isCreateQuizModalOpen && selectedSubtemaForQuiz && (
+        <CreateQuizModal
+          onClose={() => {
+            setIsCreateQuizModalOpen(false);
+            setSelectedSubtemaForQuiz(null);
+            setQuizToEdit(null);
+          }}
+          subtemaId={selectedSubtemaForQuiz}
+          quizToEdit={quizToEdit}
+          onSuccess={() => {
+            if (selectedTema) {
+              fetchSubtemas(selectedTema);
+            }
+            if (selectedSubtemaForViewQuizzes) {
+              fetchQuizzes(selectedSubtemaForViewQuizzes);
+            }
+            setQuizToEdit(null);
+          }}
+        />
+      )}
+
+      {/* Modal para ver quizes creados */}
+      {isViewQuizzesModalOpen && selectedSubtemaForViewQuizzes && (
+        <div className="modal-overlay" onClick={() => {
+          setIsViewQuizzesModalOpen(false);
+          setSelectedSubtemaForViewQuizzes(null);
+          setQuizzes([]);
+        }} style={{ zIndex: 2000 }}>
+          <div className="modal-container" style={{ maxWidth: '800px', zIndex: 2001 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Quizes Creados</h2>
+              <button className="modal-close-btn" onClick={() => {
+                setIsViewQuizzesModalOpen(false);
+                setSelectedSubtemaForViewQuizzes(null);
+                setQuizzes([]);
+              }}>×</button>
+            </div>
+            <div className="modal-body">
+              {loadingQuizzes ? (
+                <p style={{ textAlign: 'center', color: '#6b7280' }}>Cargando quizes...</p>
+              ) : quizzes.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#6b7280' }}>No hay quizes creados para este subtema.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {quizzes.map((quiz) => (
+                    <div key={quiz.id} style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '1rem',
+                      background: '#f9fafb',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1f2937' }}>
+                            {quiz.nombre}
+                          </h3>
+                          {quiz.descripcion && (
+                            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                              {quiz.descripcion}
+                            </p>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={async () => {
+                              // Cargar el quiz completo para editar
+                              try {
+                                const response = await fetch(`/api/quizzes/get-quiz?quiz_id=${quiz.id}`);
+                                const result = await response.json();
+                                if (result.data) {
+                                  setQuizToEdit(result.data);
+                                  setSelectedSubtemaForQuiz(selectedSubtemaForViewQuizzes);
+                                  setIsViewQuizzesModalOpen(false);
+                                  setIsCreateQuizModalOpen(true);
+                                }
+                              } catch (err) {
+                                console.error('Error al cargar quiz:', err);
+                                alert('Error al cargar el quiz para editar');
+                              }
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (confirm('¿Estás seguro de que deseas eliminar este quiz?')) {
+                                try {
+                                  const response = await fetch(`/api/quizzes/delete-quiz?id=${quiz.id}`, {
+                                    method: 'DELETE',
+                                  });
+                                  if (response.ok) {
+                                    await fetchQuizzes(selectedSubtemaForViewQuizzes);
+                                  } else {
+                                    const result = await response.json();
+                                    alert(result.error || 'Error al eliminar el quiz');
+                                  }
+                                } catch (err) {
+                                  console.error('Error al eliminar quiz:', err);
+                                  alert('Error al eliminar el quiz');
+                                }
+                              }
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.75rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                        <div>
+                          <strong>Inicio:</strong> {new Date(quiz.fecha_inicio).toLocaleString('es-ES')}
+                        </div>
+                        <div>
+                          <strong>Fin:</strong> {new Date(quiz.fecha_fin).toLocaleString('es-ES')}
+                        </div>
+                        <div>
+                          <strong>Tiempo por pregunta:</strong> {quiz.tiempo_por_pregunta_segundos}s
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1457,6 +1724,54 @@ function CreateSubtemaModal({ onClose, onCreate }: { onClose: () => void; onCrea
           <div className="modal-actions">
             <button type="button" onClick={onClose}>Cancelar</button>
             <button type="submit">Crear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditSubtemaModal({ subtema, onClose, onUpdate }: { subtema: Subtema; onClose: () => void; onUpdate: (id: string, nombre: string, descripcion: string) => void }) {
+  const [nombre, setNombre] = useState(subtema.nombre);
+  const [descripcion, setDescripcion] = useState(subtema.descripcion || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombre.trim()) {
+      alert('El nombre es requerido');
+      return;
+    }
+    onUpdate(subtema.id, nombre.trim(), descripcion.trim());
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Editar Subtema</h2>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label>Nombre del Subtema *</label>
+            <input
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Descripción</label>
+            <textarea
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" onClick={onClose}>Cancelar</button>
+            <button type="submit">Guardar</button>
           </div>
         </form>
       </div>
@@ -1669,6 +1984,742 @@ function CreateContenidoModal({ onClose, onCreate, subtemaNombre, subtemaDescrip
             <button type="button" onClick={onClose} disabled={uploading}>Cancelar</button>
             <button type="submit" disabled={uploading}>
               {uploading ? 'Subiendo...' : 'Crear'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditContenidoModal({
+  contenido,
+  subtemaNombre,
+  subtemaDescripcion,
+  onClose,
+  onUpdated,
+}: {
+  contenido: Contenido;
+  subtemaNombre?: string;
+  subtemaDescripcion?: string;
+  onClose: () => void;
+  onUpdated: () => Promise<void> | void;
+}) {
+  const [url, setUrl] = useState(contenido.url || '');
+  const [currentFiles, setCurrentFiles] = useState<string[]>(() => {
+    if (!contenido.archivo_url) return [];
+    try {
+      const parsed = JSON.parse(contenido.archivo_url);
+      return Array.isArray(parsed) ? parsed : [contenido.archivo_url];
+    } catch {
+      return [contenido.archivo_url];
+    }
+  });
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(() => {
+    if (!contenido.url) return null;
+    // Reutilizar lógica simple de embed
+    const matchShort = contenido.url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (matchShort) return `https://www.youtube.com/embed/${matchShort[1]}`;
+    const matchWatch = contenido.url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (matchWatch) return `https://www.youtube.com/embed/${matchWatch[1]}`;
+    if (contenido.url.includes('youtube.com/embed/')) return contenido.url;
+    return null;
+  });
+
+  const getYouTubeEmbedUrlLocal = (url: string): string | null => {
+    if (!url) return null;
+    const youtuBeMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (youtuBeMatch) return `https://www.youtube.com/embed/${youtuBeMatch[1]}`;
+    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    if (url.includes('youtube.com/embed/')) return url;
+    return null;
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    setUrl(newUrl);
+    const embedUrl = getYouTubeEmbedUrlLocal(newUrl);
+    setVideoPreviewUrl(embedUrl);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => {
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        return ['.pdf', '.jpg', '.jpeg', '.png'].includes(ext);
+      });
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeNewFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingFile = (index: number) => {
+    setCurrentFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!url.trim() && currentFiles.length === 0 && selectedFiles.length === 0) {
+      alert('Debes mantener una URL de video o al menos un archivo');
+      return;
+    }
+
+    let nuevosArchivosUrls: string[] = [];
+
+    if (selectedFiles.length > 0) {
+      setUploading(true);
+      try {
+        const uploadFormData = new FormData();
+        selectedFiles.forEach(file => {
+          uploadFormData.append('files', file);
+        });
+
+        const uploadResponse = await fetch('/api/contenido/upload-files', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          console.log('📦 Respuesta completa de upload (editar):', uploadData);
+
+          if (uploadData.files && Array.isArray(uploadData.files)) {
+            nuevosArchivosUrls = uploadData.files.map((file: any) => file.url);
+          } else if (uploadData.urls && Array.isArray(uploadData.urls)) {
+            nuevosArchivosUrls = uploadData.urls;
+          } else {
+            console.error('❌ Formato de respuesta inesperado al editar:', uploadData);
+            alert('Error: formato de respuesta inesperado al subir archivos');
+            setUploading(false);
+            return;
+          }
+        } else {
+          const errorData = await uploadResponse.json();
+          console.error('❌ Error al subir archivos (editar):', errorData);
+          alert(errorData.error || 'Error al subir archivos');
+          setUploading(false);
+          return;
+        }
+      } catch (err: any) {
+        alert('Error al subir archivos: ' + err.message);
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    const todasLasUrls = [...currentFiles, ...nuevosArchivosUrls];
+    let archivo_url: string | null = null;
+    if (todasLasUrls.length === 1) {
+      archivo_url = todasLasUrls[0];
+    } else if (todasLasUrls.length > 1) {
+      archivo_url = JSON.stringify(todasLasUrls);
+    }
+
+    const tipo: 'video' | 'archivo' | 'foro' =
+      url.trim() ? 'video' : todasLasUrls.length > 0 ? 'archivo' : contenido.tipo;
+
+    try {
+      const response = await fetch('/api/contenido/update-contenido', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: contenido.id,
+          tipo,
+          titulo: contenido.titulo,
+          descripcion: contenido.descripcion || subtemaDescripcion || '',
+          url: url.trim() || null,
+          archivo_url,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al actualizar contenido');
+      }
+
+      await onUpdated();
+      onClose();
+    } catch (err: any) {
+      alert(err.message || 'Error al actualizar contenido');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal-container" style={{ maxWidth: '600px', zIndex: 2001 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Editar Contenido</h2>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label>URL del Video (opcional)</label>
+            <input
+              type="url"
+              value={url}
+              onChange={handleUrlChange}
+              placeholder="https://youtube.com/watch?v=... o https://youtu.be/..."
+            />
+            {videoPreviewUrl && (
+              <div className="video-preview-wrapper" style={{ marginTop: '1rem' }}>
+                <iframe
+                  className="video-preview-iframe"
+                  src={videoPreviewUrl}
+                  title="Vista previa del video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Archivos existentes */}
+          {currentFiles.length > 0 && (
+            <div className="form-group">
+              <label>Archivos actuales</label>
+              <ul className="files-list">
+                {currentFiles.map((fileUrl, index) => (
+                  <li key={index} className="file-item">
+                    <span className="file-name">
+                      {(() => {
+                        try {
+                          const urlObj = new URL(fileUrl);
+                          return urlObj.pathname.split('/').pop() || 'archivo';
+                        } catch {
+                          return 'archivo';
+                        }
+                      })()}
+                    </span>
+                    <button
+                      type="button"
+                      className="remove-file-btn"
+                      onClick={() => removeExistingFile(index)}
+                    >
+                      Quitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Nuevos archivos */}
+          <div className="form-group">
+            <label>Agregar nuevos archivos (PDF, JPG, PNG)</label>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
+              className="file-input"
+            />
+            {selectedFiles.length > 0 && (
+              <ul className="files-list">
+                {selectedFiles.map((file, index) => (
+                  <li key={index} className="file-item">
+                    <span className="file-name">{file.name}</span>
+                    <button
+                      type="button"
+                      className="remove-file-btn"
+                      onClick={() => removeNewFile(index)}
+                    >
+                      Quitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={uploading}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={uploading}>
+              {uploading ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Modal para crear/editar quiz
+function CreateQuizModal({
+  onClose,
+  subtemaId,
+  onSuccess,
+  quizToEdit,
+}: {
+  onClose: () => void;
+  subtemaId: string;
+  onSuccess: () => void;
+  quizToEdit?: any;
+}) {
+  const [nombre, setNombre] = useState(quizToEdit?.nombre || '');
+  const [descripcion, setDescripcion] = useState(quizToEdit?.descripcion || '');
+  const [fechaInicio, setFechaInicio] = useState(quizToEdit?.fecha_inicio ? new Date(quizToEdit.fecha_inicio).toISOString().slice(0, 16) : '');
+  const [fechaFin, setFechaFin] = useState(quizToEdit?.fecha_fin ? new Date(quizToEdit.fecha_fin).toISOString().slice(0, 16) : '');
+  const [preguntas, setPreguntas] = useState<Array<{
+    id?: string;
+    pregunta_texto: string;
+    tiempo_segundos: number;
+    opciones: Array<{
+      id?: string;
+      texto: string;
+      es_correcta: boolean;
+      explicacion: string;
+    }>;
+  }>>(quizToEdit?.preguntas?.map((p: any) => ({
+    id: p.id,
+    pregunta_texto: p.pregunta_texto,
+    tiempo_segundos: p.tiempo_segundos || 30,
+    opciones: p.opciones?.map((o: any) => ({
+      id: o.id,
+      texto: o.texto,
+      es_correcta: o.es_correcta,
+      explicacion: o.explicacion || '',
+    })) || [],
+  })) || []);
+  const [saving, setSaving] = useState(false);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
+
+  // Cargar datos del quiz si se está editando
+  useEffect(() => {
+    if (quizToEdit?.id) {
+      setLoadingQuiz(true);
+      fetch(`/api/quizzes/get-quiz?quiz_id=${quizToEdit.id}`)
+        .then(res => res.json())
+        .then(result => {
+          if (result.data) {
+            const quiz = result.data;
+            setNombre(quiz.nombre);
+            setDescripcion(quiz.descripcion || '');
+            setFechaInicio(new Date(quiz.fecha_inicio).toISOString().slice(0, 16));
+            setFechaFin(new Date(quiz.fecha_fin).toISOString().slice(0, 16));
+            setPreguntas(quiz.preguntas?.map((p: any) => ({
+              id: p.id,
+              pregunta_texto: p.pregunta_texto,
+              tiempo_segundos: p.tiempo_segundos || 30,
+              opciones: p.opciones?.map((o: any) => ({
+                id: o.id,
+                texto: o.texto,
+                es_correcta: o.es_correcta,
+                explicacion: o.explicacion || '',
+              })) || [],
+            })) || []);
+          }
+        })
+        .catch(err => {
+          console.error('Error al cargar quiz:', err);
+        })
+        .finally(() => {
+          setLoadingQuiz(false);
+        });
+    } else {
+      // Establecer fechas por defecto (ahora y 7 días después) solo si no hay quiz para editar
+      const ahora = new Date();
+      const en7Dias = new Date();
+      en7Dias.setDate(ahora.getDate() + 7);
+      
+      const formatoFecha = (fecha: Date) => {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        const horas = String(fecha.getHours()).padStart(2, '0');
+        const minutos = String(fecha.getMinutes()).padStart(2, '0');
+        return `${año}-${mes}-${dia}T${horas}:${minutos}`;
+      };
+
+      if (!fechaInicio) setFechaInicio(formatoFecha(ahora));
+      if (!fechaFin) setFechaFin(formatoFecha(en7Dias));
+    }
+  }, [quizToEdit]);
+
+  const agregarPregunta = () => {
+    setPreguntas([...preguntas, {
+      pregunta_texto: '',
+      tiempo_segundos: 30,
+      opciones: [
+        { texto: '', es_correcta: false, explicacion: '' },
+        { texto: '', es_correcta: false, explicacion: '' },
+      ],
+    }]);
+  };
+
+  const eliminarPregunta = (index: number) => {
+    setPreguntas(preguntas.filter((_, i) => i !== index));
+  };
+
+  const actualizarPregunta = (index: number, campo: string, valor: any) => {
+    const nuevasPreguntas = [...preguntas];
+    if (campo === 'pregunta_texto') {
+      nuevasPreguntas[index].pregunta_texto = valor;
+    } else if (campo === 'tiempo_segundos') {
+      nuevasPreguntas[index].tiempo_segundos = parseInt(valor) || 30;
+    }
+    setPreguntas(nuevasPreguntas);
+  };
+
+  const agregarOpcion = (preguntaIndex: number) => {
+    const nuevasPreguntas = [...preguntas];
+    nuevasPreguntas[preguntaIndex].opciones.push({
+      texto: '',
+      es_correcta: false,
+      explicacion: '',
+    });
+    setPreguntas(nuevasPreguntas);
+  };
+
+  const eliminarOpcion = (preguntaIndex: number, opcionIndex: number) => {
+    const nuevasPreguntas = [...preguntas];
+    if (nuevasPreguntas[preguntaIndex].opciones.length > 2) {
+      nuevasPreguntas[preguntaIndex].opciones = nuevasPreguntas[preguntaIndex].opciones.filter((_, i) => i !== opcionIndex);
+      setPreguntas(nuevasPreguntas);
+    } else {
+      alert('Cada pregunta debe tener al menos 2 opciones');
+    }
+  };
+
+  const actualizarOpcion = (preguntaIndex: number, opcionIndex: number, campo: string, valor: any) => {
+    const nuevasPreguntas = [...preguntas];
+    if (campo === 'texto') {
+      nuevasPreguntas[preguntaIndex].opciones[opcionIndex].texto = valor;
+    } else if (campo === 'es_correcta') {
+      // Solo una opción puede ser correcta por pregunta
+      nuevasPreguntas[preguntaIndex].opciones.forEach((op, i) => {
+        op.es_correcta = i === opcionIndex;
+      });
+    } else if (campo === 'explicacion') {
+      nuevasPreguntas[preguntaIndex].opciones[opcionIndex].explicacion = valor;
+    }
+    setPreguntas(nuevasPreguntas);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!nombre.trim()) {
+      alert('El nombre del quiz es requerido');
+      return;
+    }
+
+    if (preguntas.length === 0) {
+      alert('Debes agregar al menos una pregunta');
+      return;
+    }
+
+    // Validar preguntas
+    for (let i = 0; i < preguntas.length; i++) {
+      const pregunta = preguntas[i];
+      if (!pregunta.pregunta_texto.trim()) {
+        alert(`La pregunta ${i + 1} no tiene texto`);
+        return;
+      }
+      if (!pregunta.tiempo_segundos || pregunta.tiempo_segundos < 10) {
+        alert(`La pregunta ${i + 1} debe tener al menos 10 segundos`);
+        return;
+      }
+      if (pregunta.opciones.length < 2) {
+        alert(`La pregunta ${i + 1} debe tener al menos 2 opciones`);
+        return;
+      }
+      const tieneCorrecta = pregunta.opciones.some(op => op.es_correcta && op.texto.trim());
+      if (!tieneCorrecta) {
+        alert(`La pregunta ${i + 1} debe tener al menos una opción correcta`);
+        return;
+      }
+      for (let j = 0; j < pregunta.opciones.length; j++) {
+        if (!pregunta.opciones[j].texto.trim()) {
+          alert(`La opción ${j + 1} de la pregunta ${i + 1} no tiene texto`);
+          return;
+        }
+      }
+    }
+
+    if (!fechaInicio || !fechaFin) {
+      alert('Debes especificar fecha de inicio y fin del quiz');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const isEditing = quizToEdit?.id;
+      const url = isEditing ? '/api/quizzes/update-quiz' : '/api/quizzes/create-quiz';
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      const body: any = {
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || null,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        preguntas: preguntas.map(p => ({
+          id: p.id,
+          pregunta_texto: p.pregunta_texto.trim(),
+          tiempo_segundos: p.tiempo_segundos || 30,
+          opciones: p.opciones.map(op => ({
+            id: op.id,
+            texto: op.texto.trim(),
+            es_correcta: op.es_correcta,
+            explicacion: op.explicacion.trim() || null,
+          })),
+        })),
+      };
+
+      if (isEditing) {
+        body.quiz_id = quizToEdit.id;
+      } else {
+        body.subtema_id = subtemaId;
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Error al ${isEditing ? 'actualizar' : 'crear'} el quiz`);
+      }
+
+      alert(`Quiz ${isEditing ? 'actualizado' : 'creado'} exitosamente`);
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      alert(err.message || `Error al ${quizToEdit?.id ? 'actualizar' : 'crear'} el quiz`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal-container" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', zIndex: 2001 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">{quizToEdit?.id ? 'Editar Quiz' : 'Crear Quiz'}</h2>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label>Nombre del Quiz *</label>
+            <input
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+              placeholder="Ej: Quiz sobre células"
+            />
+          </div>
+          <div className="form-group">
+            <label>Descripción</label>
+            <textarea
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              rows={2}
+              placeholder="Descripción opcional del quiz"
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Fecha/Hora de inicio *</label>
+              <input
+                type="datetime-local"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Fecha/Hora de fin *</label>
+              <input
+                type="datetime-local"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <label style={{ margin: 0 }}>Preguntas *</label>
+              <button
+                type="button"
+                onClick={agregarPregunta}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                }}
+              >
+                + Agregar Pregunta
+              </button>
+            </div>
+
+            {preguntas.length === 0 && (
+              <p style={{ color: '#6b7280', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                No hay preguntas. Haz clic en "Agregar Pregunta" para comenzar.
+              </p>
+            )}
+
+            {preguntas.map((pregunta, preguntaIndex) => (
+              <div key={preguntaIndex} style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1rem',
+                background: '#f9fafb',
+                color: '#1f2937',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#1f2937' }}>Pregunta {preguntaIndex + 1}</h4>
+                  <button
+                    type="button"
+                    onClick={() => eliminarPregunta(preguntaIndex)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label>Texto de la pregunta *</label>
+                  <textarea
+                    value={pregunta.pregunta_texto}
+                    onChange={(e) => actualizarPregunta(preguntaIndex, 'pregunta_texto', e.target.value)}
+                    rows={2}
+                    required
+                    placeholder="Ej: ¿Cuál es la función principal de las mitocondrias?"
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Tiempo para responder (segundos) *
+                  </label>
+                  <input
+                    type="number"
+                    value={pregunta.tiempo_segundos || 30}
+                    onChange={(e) => actualizarPregunta(preguntaIndex, 'tiempo_segundos', e.target.value)}
+                    min="10"
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500 }}>Opciones de respuesta *</label>
+                    <button
+                      type="button"
+                      onClick={() => agregarOpcion(preguntaIndex)}
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        background: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      + Opción
+                    </button>
+                  </div>
+
+                  {pregunta.opciones.map((opcion, opcionIndex) => (
+                    <div key={opcionIndex} style={{
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      padding: '0.75rem',
+                      marginBottom: '0.5rem',
+                      background: opcion.es_correcta ? '#dcfce7' : 'white',
+                    }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <input
+                          type="radio"
+                          checked={opcion.es_correcta}
+                          onChange={() => actualizarOpcion(preguntaIndex, opcionIndex, 'es_correcta', true)}
+                          style={{ marginTop: '0.25rem' }}
+                        />
+                        <label style={{ flex: 1, margin: 0, fontSize: '0.875rem', fontWeight: opcion.es_correcta ? 600 : 400 }}>
+                          {opcion.es_correcta ? '✓ Respuesta correcta' : 'Marcar como correcta'}
+                        </label>
+                        {pregunta.opciones.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => eliminarOpcion(preguntaIndex, opcionIndex)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                        <input
+                          type="text"
+                          value={opcion.texto}
+                          onChange={(e) => actualizarOpcion(preguntaIndex, opcionIndex, 'texto', e.target.value)}
+                          placeholder="Texto de la opción"
+                          required
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>Explicación (opcional)</label>
+                        <textarea
+                          value={opcion.explicacion}
+                          onChange={(e) => actualizarOpcion(preguntaIndex, opcionIndex, 'explicacion', e.target.value)}
+                          rows={2}
+                          placeholder="Explicación de por qué esta respuesta es correcta o incorrecta"
+                          style={{ fontSize: '0.875rem' }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={saving || loadingQuiz}>Cancelar</button>
+            <button type="submit" disabled={saving || loadingQuiz || preguntas.length === 0}>
+              {loadingQuiz ? 'Cargando...' : saving ? 'Guardando...' : quizToEdit?.id ? 'Actualizar Quiz' : 'Crear Quiz'}
             </button>
           </div>
         </form>

@@ -1,0 +1,23 @@
+// BACKUP - Layout simplificado para pruebas
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Colegio Nueva - Plataforma Educativa",
+  description: "Plataforma educativa para el Colegio Nueva",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="es">
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
+
