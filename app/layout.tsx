@@ -1,28 +1,7 @@
 import type { Metadata } from "next";
-import { Nunito_Sans, Bitter, Inter } from "next/font/google";
 import "./globals.css";
 import "../css/header.css";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import ConditionalLayout from "@/components/ConditionalLayout";
-
-const nunitoSans = Nunito_Sans({
-  weight: ['400', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-nunito-sans',
-});
-
-const bitter = Bitter({
-  weight: ['400', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-bitter',
-});
-
-const inter = Inter({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-google-sans',
-});
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Colegio Nueva - Plataforma Educativa",
@@ -35,17 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${nunitoSans.variable} ${bitter.variable} ${inter.variable}`}>
+    <html lang="es">
       <body>
-        <LanguageProvider>
-          <AuthProvider>
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
-          </AuthProvider>
-        </LanguageProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
 }
-

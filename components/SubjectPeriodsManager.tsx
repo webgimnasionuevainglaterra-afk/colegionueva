@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import CreatePeriodForm from './CreatePeriodForm';
 import EditPeriodForm from './EditPeriodForm';
+import PeriodContentManager from './PeriodContentManager';
 import '../app/css/create-admin.css';
 import '../app/css/course-subjects.css';
 
@@ -38,6 +39,7 @@ export default function SubjectPeriodsManager({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<Period | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [managingContentPeriod, setManagingContentPeriod] = useState<Period | null>(null);
 
   const fetchPeriods = async () => {
     try {
@@ -192,6 +194,16 @@ export default function SubjectPeriodsManager({
                   </div>
                   <div className="subject-actions">
                     <button
+                      className="action-btn subjects-btn"
+                      title="Gestionar contenido"
+                      onClick={() => setManagingContentPeriod(period)}
+                    >
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                      </svg>
+                      Contenido
+                    </button>
+                    <button
                       className="action-btn edit-btn"
                       title="Editar periodo"
                       onClick={() => setEditingPeriod(period)}
@@ -199,6 +211,7 @@ export default function SubjectPeriodsManager({
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
+                      Editar
                     </button>
                     <button
                       className="action-btn delete-btn"
@@ -209,6 +222,7 @@ export default function SubjectPeriodsManager({
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
+                      Eliminar
                     </button>
                   </div>
                 </div>
@@ -239,6 +253,15 @@ export default function SubjectPeriodsManager({
             setEditingPeriod(null);
             setRefreshKey(prev => prev + 1);
           }}
+        />
+      )}
+
+      {managingContentPeriod && (
+        <PeriodContentManager
+          periodId={managingContentPeriod.id}
+          periodName={managingContentPeriod.nombre}
+          subjectName={subjectName}
+          onClose={() => setManagingContentPeriod(null)}
         />
       )}
     </div>

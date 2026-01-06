@@ -22,31 +22,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      }
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') {
       setLoading(false);
-    });
+      return;
+    }
+
+    let mounted = true;
+    let subscription: any = null;
+
+    // Obtener sesión inicial de forma asíncrona y segura
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (mounted && !error) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            fetchUserRole(session.user.id);
+          }
+        }
+      } catch (error) {
+        console.warn('Error al obtener sesión:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
 
     // Escuchar cambios en la autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setUserRole(null);
-      }
-      setLoading(false);
-    });
+    try {
+      const {
+        data: { subscription: authSubscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            fetchUserRole(session.user.id);
+          } else {
+            setUserRole(null);
+          }
+          setLoading(false);
+        }
+      });
 
-    return () => subscription.unsubscribe();
+      subscription = authSubscription;
+    } catch (error) {
+      console.warn('Error al suscribirse a cambios de auth:', error);
+      if (mounted) {
+        setLoading(false);
+      }
+    }
+
+    return () => {
+      mounted = false;
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (e) {
+          // Ignorar errores al desuscribirse
+        }
+      }
+    };
   }, []);
 
   const fetchUserRole = async (userId: string) => {
