@@ -4,6 +4,8 @@
   flex-direction: column;
   min-height: 100vh;
   background: #f8f9fa;
+  position: relative;
+  overflow: visible;
 }
 
 .dashboard-loading {
@@ -17,8 +19,8 @@
 }
 
 .logo-image {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
 }
 
@@ -38,7 +40,8 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 10002 !important;
+  overflow: visible;
 }
 
 .dashboard-header-content {
@@ -48,12 +51,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+  overflow: visible;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .mobile-menu-toggle {
@@ -83,6 +89,14 @@
 .header-logo {
   display: flex;
   align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.logo-image {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
 }
 
 .header-menu {
@@ -100,6 +114,8 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  position: relative;
+  z-index: 10001;
 }
 
 .menu-item {
@@ -294,6 +310,7 @@
 /* Settings Dropdown */
 .settings-dropdown {
   position: relative;
+  z-index: 10001 !important;
 }
 
 .settings-button {
@@ -308,6 +325,8 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  position: relative;
+  z-index: 10001 !important;
 }
 
 .settings-button:hover {
@@ -329,7 +348,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
   overflow: hidden;
-  z-index: 1000;
+  z-index: 10001 !important;
 }
 
 .settings-menu-item {

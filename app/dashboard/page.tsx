@@ -16,7 +16,12 @@ import TeachersList from '@/components/TeachersList';
 import StudentsManager from '@/components/StudentsManager';
 import TeacherProgramsView from '@/components/TeacherProgramsView';
 import TeacherReportsView from '@/components/TeacherReportsView';
+import TeacherDashboard from '@/components/TeacherDashboard';
+import TeacherSidebar from '@/components/TeacherSidebar';
+import TeacherRightSidebar from '@/components/TeacherRightSidebar';
+import StudentDetailView from '@/components/StudentDetailView';
 import '../css/dashboard.css';
+import '../css/teacher-sidebar.css';
 
 interface AdministratorInfo {
   nombre: string;
@@ -53,6 +58,29 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [coursesRefreshKey, setCoursesRefreshKey] = useState(0);
   const [teachersRefreshKey, setTeachersRefreshKey] = useState(0);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+
+  // Detectar tamaño de pantalla y ajustar sidebars
+  useEffect(() => {
+    if (userRole === 'profesor') {
+      const checkScreenSize = () => {
+        if (window.innerWidth >= 768) {
+          setIsSidebarOpen(true); // Abrir en desktop
+          setIsRightSidebarOpen(true); // Abrir sidebar derecho en desktop
+        } else {
+          setIsSidebarOpen(false); // Cerrar en móvil
+          setIsRightSidebarOpen(false); // Cerrar sidebar derecho en móvil
+        }
+      };
+      
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+      
+      return () => window.removeEventListener('resize', checkScreenSize);
+    }
+  }, [userRole]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
   const [isCreateTeacherModalOpen, setIsCreateTeacherModalOpen] = useState(false);
@@ -126,17 +154,32 @@ export default function Dashboard() {
         const token = session?.access_token;
 
         if (token) {
-          await fetch('/api/admin/update-user-status', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              userId: user.id,
-              isOnline: isOnline,
-            }),
-          });
+          // Si es estudiante, usar la API de estudiantes
+          if (userRole === 'estudiante') {
+            await fetch('/api/estudiantes/update-user-status', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                isOnline: isOnline,
+              }),
+            });
+          } else {
+            // Para administradores y profesores, usar la API de admin
+            await fetch('/api/admin/update-user-status', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                isOnline: isOnline,
+              }),
+            });
+          }
         }
       } catch (error) {
         console.error('Error al actualizar estado online:', error);
@@ -157,7 +200,7 @@ export default function Dashboard() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       updateOnlineStatus(false);
     };
-  }, [user]);
+  }, [user, userRole]);
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
@@ -245,7 +288,10 @@ export default function Dashboard() {
     };
 
     if (isSettingsOpen || isUsersMenuOpen || isProgramsMenuOpen || isAdmissionsMenuOpen || isReportsMenuOpen) {
-      document.addEventListener('click', handleClickOutside);
+      // Pequeño delay para evitar que se cierre inmediatamente al abrir
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 100);
     }
 
     return () => {
@@ -328,10 +374,10 @@ export default function Dashboard() {
             </button>
             <div className="header-logo">
               <Image
-                src="/images/logo.svg"
+                src="/images/logo.jpg"
                 alt="Logo"
-                width={60}
-                height={60}
+                width={80}
+                height={80}
                 className="logo-image"
                 unoptimized
               />
@@ -566,15 +612,28 @@ export default function Dashboard() {
                 </svg>
               </button>
               {isSettingsOpen && (
-                <div className="settings-menu">
-                  <button className="settings-menu-item">
+                <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    className="settings-menu-item"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      // Aquí puedes agregar la funcionalidad de ajustes si es necesario
+                    }}
+                  >
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Ajustes
                   </button>
-                  <button className="settings-menu-item" onClick={handleSignOut}>
+                  <button 
+                    className="settings-menu-item" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSettingsOpen(false);
+                      handleSignOut();
+                    }}
+                  >
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
@@ -588,11 +647,49 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <div className="dashboard-main">
+      <div className="dashboard-main" style={{
+        display: 'flex',
+        flexDirection: userRole === 'profesor' ? 'row' : 'column',
+        height: 'calc(100vh - 80px)',
+      }}>
+        {/* Sidebar para profesores */}
+        {userRole === 'profesor' && (
+          <>
+            <TeacherSidebar
+              onStudentClick={(studentId) => {
+                setSelectedStudentId(studentId);
+                setIsSidebarOpen(false); // Cerrar sidebar en móvil al seleccionar estudiante
+              }}
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+            />
+            {/* Botón para abrir sidebar en móvil */}
+            {!selectedStudentId && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="teacher-floating-btn"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
 
         {/* Content Area */}
-        <main className="dashboard-content">
-          {activeMenu === 'administradores' ? (
+        <main className={`dashboard-content ${userRole === 'profesor' ? (isRightSidebarOpen ? 'dashboard-content-with-both-sidebars' : 'dashboard-content-with-sidebar') : ''}`} style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: userRole === 'profesor' && !selectedStudentId ? '2rem' : userRole === 'profesor' ? '0' : undefined,
+        }}>
+          {/* Vista de detalle del estudiante para profesores */}
+          {userRole === 'profesor' && selectedStudentId ? (
+            <StudentDetailView
+              studentId={selectedStudentId}
+              onClose={() => setSelectedStudentId(null)}
+            />
+          ) : activeMenu === 'administradores' ? (
             <div className="administrators-section">
               <div className="administrators-actions">
                 <h2 className="section-title">Gestionar Administradores</h2>
@@ -673,35 +770,75 @@ export default function Dashboard() {
             <StudentsManager />
           ) : activeMenu === 'reportes-estudiantes' && userRole === 'profesor' ? (
             <TeacherReportsView />
+          ) : activeMenu === 'dashboard' && userRole === 'profesor' ? (
+            <TeacherDashboard />
           ) : activeMenu === 'dashboard' ? (
             <div className="dashboard-welcome">
               <h1 className="welcome-title">
-                {userRole === 'profesor' 
-                  ? 'Bienvenido al Panel del Profesor' 
-                  : 'Bienvenido al Panel de Administración'}
+                Bienvenido al Panel de Administración
               </h1>
               <p className="welcome-description">
-                {userRole === 'profesor'
-                  ? 'Selecciona una opción del menú superior para gestionar tus cursos y ver reportes de estudiantes.'
-                  : 'Selecciona una opción del menú superior para comenzar a gestionar la plataforma.'}
+                Selecciona una opción del menú superior para comenzar a gestionar la plataforma.
               </p>
             </div>
           ) : (
             <div className="dashboard-welcome">
               <h1 className="welcome-title">
-                {userRole === 'profesor' 
-                  ? 'Bienvenido al Panel del Profesor' 
-                  : 'Bienvenido al Panel de Administración'}
+                Bienvenido al Panel de Administración
               </h1>
               <p className="welcome-description">
-                {userRole === 'profesor'
-                  ? 'Selecciona una opción del menú superior para gestionar tus cursos y ver reportes de estudiantes.'
-                  : 'Selecciona una opción del menú superior para comenzar a gestionar la plataforma.'}
+                Selecciona una opción del menú superior para comenzar a gestionar la plataforma.
               </p>
             </div>
           )}
         </main>
+
+        {/* Right Sidebar para profesores - Quizzes y Evaluaciones */}
+        {userRole === 'profesor' && (
+          <TeacherRightSidebar
+            isOpen={isRightSidebarOpen}
+            onClose={() => setIsRightSidebarOpen(false)}
+          />
+        )}
       </div>
+
+      {/* Footer fijo fuera del contenedor con overflow - solo para profesores */}
+      {userRole === 'profesor' && (
+        <footer 
+          className="dashboard-footer" 
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: '100%',
+            background: '#ffffff',
+            borderTop: '1px solid #e5e7eb',
+            padding: '1.5rem 0',
+            zIndex: 1000,
+            boxShadow: '0 -2px 4px rgba(0, 0, 0, 0.05)',
+            display: 'block',
+            visibility: 'visible',
+            opacity: 1,
+          }}
+        >
+          <div style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '0 2rem',
+            textAlign: 'center',
+          }}>
+            <p style={{
+              color: '#6b7280',
+              fontSize: '0.875rem',
+              margin: 0,
+              fontWeight: 500,
+            }}>
+              © {new Date().getFullYear()} Colegio Nueva Generación. Todos los derechos reservados.
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

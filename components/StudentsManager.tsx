@@ -20,6 +20,7 @@ interface Estudiante {
   tarjeta_identidad: string;
   foto_url?: string;
   is_active?: boolean;
+  is_online?: boolean;
   sexo?: string;
   acudientes?: {
     nombre: string;
@@ -585,6 +586,25 @@ export default function StudentsManager() {
                           >
                             {estudiante.nombre[0]}{estudiante.apellido[0]}
                           </div>
+                          {/* Indicador de estado online */}
+                          <span 
+                            className={`online-status-indicator ${estudiante.is_online ? 'online' : 'offline'}`}
+                            title={estudiante.is_online ? 'En línea' : 'Desconectado'}
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              width: '14px',
+                              height: '14px',
+                              borderRadius: '50%',
+                              border: '2px solid white',
+                              zIndex: 10,
+                              background: estudiante.is_online ? '#10b981' : '#ef4444',
+                              boxShadow: estudiante.is_online 
+                                ? '0 0 0 2px white, 0 0 4px rgba(16, 185, 129, 0.5)' 
+                                : '0 0 0 2px white, 0 0 4px rgba(239, 68, 68, 0.5)',
+                            }}
+                          ></span>
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '1rem', color: '#1f2937' }}>
@@ -1279,19 +1299,20 @@ function ViewEstudianteModal({
         </div>
         <div className="modal-body">
           <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
-            {estudiante.foto_url ? (
-              <img
-                src={estudiante.foto_url}
-                alt={`${estudiante.nombre} ${estudiante.apellido}`}
-                style={{
-                  width: '120px',
-                  height: '120px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '3px solid #e5e7eb',
-                }}
-              />
-            ) : (
+            <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+              {estudiante.foto_url ? (
+                <img
+                  src={estudiante.foto_url}
+                  alt={`${estudiante.nombre} ${estudiante.apellido}`}
+                  style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #e5e7eb',
+                  }}
+                />
+              ) : (
               <div
                 style={{
                   width: '120px',
@@ -1309,7 +1330,27 @@ function ViewEstudianteModal({
               >
                 {estudiante.nombre[0]}{estudiante.apellido[0]}
               </div>
-            )}
+              )}
+              {/* Indicador de estado online */}
+              <span 
+                className={`online-status-indicator ${estudiante.is_online ? 'online' : 'offline'}`}
+                title={estudiante.is_online ? 'En línea' : 'Desconectado'}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  border: '3px solid white',
+                  zIndex: 10,
+                  background: estudiante.is_online ? '#10b981' : '#ef4444',
+                  boxShadow: estudiante.is_online 
+                    ? '0 0 0 2px white, 0 0 4px rgba(16, 185, 129, 0.5)' 
+                    : '0 0 0 2px white, 0 0 4px rgba(239, 68, 68, 0.5)',
+                }}
+              ></span>
+            </div>
             <div style={{ flex: 1 }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1f2937', marginBottom: '0.5rem' }}>
                 {estudiante.nombre} {estudiante.apellido}

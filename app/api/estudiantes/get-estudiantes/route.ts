@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       `)
       .order('apellido', { ascending: true })
       .order('nombre', { ascending: true });
+    
+    // Asegurar que is_online y last_seen estén incluidos en la selección
 
     // Si se proporciona curso_id, filtrar estudiantes de ese curso
     if (curso_id) {

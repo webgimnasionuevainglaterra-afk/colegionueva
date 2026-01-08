@@ -141,6 +141,7 @@ export async function GET(request: NextRequest) {
         sexo: ec.estudiantes.sexo,
         foto_url: ec.estudiantes.foto_url,
         is_active: ec.estudiantes.is_active,
+        is_online: ec.estudiantes.is_online ?? false, // Usar ?? para manejar null/undefined
         acudiente: ec.estudiantes.acudientes || null,
       },
       curso: {

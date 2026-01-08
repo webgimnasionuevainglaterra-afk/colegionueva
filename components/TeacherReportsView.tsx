@@ -16,6 +16,7 @@ interface EstudianteConCurso {
     sexo: string | null;
     foto_url: string | null;
     is_active: boolean;
+    is_online?: boolean;
     acudiente: any | null;
   };
   curso: {
