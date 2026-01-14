@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase-client';
 import '../app/css/create-admin.css';
 import '../app/css/course-subjects.css';
 
@@ -74,6 +75,7 @@ export default function PeriodContentManager({
   const [selectedSubtemaForViewQuizzes, setSelectedSubtemaForViewQuizzes] = useState<string | null>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [isImportContenidosModalOpen, setIsImportContenidosModalOpen] = useState(false);
 
   // Cargar quizes de un subtema
   const fetchQuizzes = async (subtemaId: string) => {
@@ -793,21 +795,71 @@ export default function PeriodContentManager({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
-        <button
-          className="create-subject-btn"
-          onClick={() => {
-            if (!selectedTema) {
-              alert('Por favor selecciona un tema primero desde la vista de Temas');
-              return;
-            }
-            setIsCreateSubtemaModalOpen(true);
-          }}
-        >
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Agregar Subtema
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              if (!selectedTema) {
+                alert('Por favor selecciona un tema primero desde la vista de Temas');
+                return;
+              }
+              setIsCreateSubtemaModalOpen(true);
+            }}
+            style={{ flex: 1 }}
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Agregar Subtema
+          </button>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              // Descargar plantilla
+              window.open('/api/contenido/download-template', '_blank');
+            }}
+            style={{ 
+              backgroundColor: '#10b981',
+              borderColor: '#10b981',
+              flex: 'none',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            title="Descargar Plantilla Excel"
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Descargar Plantilla</span>
+          </button>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              if (!periodId) {
+                alert('Error: No se puede importar sin periodo');
+                return;
+              }
+              setIsImportContenidosModalOpen(true);
+            }}
+            style={{ 
+              backgroundColor: '#f59e0b',
+              borderColor: '#f59e0b',
+              flex: 'none',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            title="Importar desde Excel"
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <span>Importar Excel</span>
+          </button>
+        </div>
       </div>
 
       {!selectedTema ? (
@@ -1145,21 +1197,76 @@ export default function PeriodContentManager({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
-        <button
-          className="create-subject-btn"
-          onClick={() => {
-            if (!selectedSubtema) {
-              alert('Por favor selecciona un subtema primero desde la vista de Subtemas');
-              return;
-            }
-            setIsCreateContenidoModalOpen(true);
-          }}
-        >
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Agregar Contenido
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              if (!selectedSubtema) {
+                alert('Por favor selecciona un subtema primero desde la vista de Subtemas');
+                return;
+              }
+              setIsCreateContenidoModalOpen(true);
+            }}
+            style={{ flex: 1 }}
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Agregar Contenido
+          </button>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              // Descargar plantilla con el nombre del tema
+              const temaSeleccionado = temas.find(t => t.id === selectedTema);
+              const temaNombre = temaSeleccionado?.nombre || '';
+              const url = temaNombre 
+                ? `/api/contenido/download-template?tema=${encodeURIComponent(temaNombre)}`
+                : '/api/contenido/download-template';
+              window.open(url, '_blank');
+            }}
+            style={{ 
+              backgroundColor: '#10b981',
+              borderColor: '#10b981',
+              flex: 'none',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            title="Descargar Plantilla Excel"
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Descargar Plantilla</span>
+          </button>
+          <button
+            className="create-subject-btn"
+            onClick={() => {
+              if (!periodId) {
+                alert('Error: No se puede importar sin periodo');
+                return;
+              }
+              setIsImportContenidosModalOpen(true);
+            }}
+            style={{ 
+              backgroundColor: '#f59e0b',
+              borderColor: '#f59e0b',
+              flex: 'none',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            title="Importar desde Excel"
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <span>Importar Excel</span>
+          </button>
+        </div>
       </div>
 
       {!selectedSubtema ? (
@@ -1451,6 +1558,21 @@ export default function PeriodContentManager({
               fetchQuizzes(selectedSubtemaForViewQuizzes);
             }
             setQuizToEdit(null);
+          }}
+        />
+      )}
+
+      {/* Modal importar contenidos */}
+      {isImportContenidosModalOpen && periodId && (
+        <ImportContenidosModal
+          periodId={periodId}
+          periodName={periodName || ''}
+          onClose={() => setIsImportContenidosModalOpen(false)}
+          onContenidosImported={() => {
+            if (selectedSubtema && selectedTema) {
+              fetchSubtemas(selectedTema);
+            }
+            setIsImportContenidosModalOpen(false);
           }}
         />
       )}
@@ -2270,6 +2392,24 @@ function CreateQuizModal({
   const [descripcion, setDescripcion] = useState(quizToEdit?.descripcion || '');
   const [fechaInicio, setFechaInicio] = useState(quizToEdit?.fecha_inicio ? new Date(quizToEdit.fecha_inicio).toISOString().slice(0, 16) : '');
   const [fechaFin, setFechaFin] = useState(quizToEdit?.fecha_fin ? new Date(quizToEdit.fecha_fin).toISOString().slice(0, 16) : '');
+  // Calcular isActive inicial basado en fechas si no hay quiz para editar
+  const calcularIsActiveInicial = () => {
+    if (quizToEdit?.is_active !== undefined) {
+      return quizToEdit.is_active;
+    }
+    // Si no hay fechas aún, por defecto true
+    if (!fechaInicio || !fechaFin) {
+      return true;
+    }
+    // Calcular basado en fechas: activo si la fecha actual está entre inicio y fin
+    const ahora = new Date();
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    return ahora >= inicio && ahora <= fin;
+  };
+  
+  const [isActive, setIsActive] = useState(calcularIsActiveInicial());
+  const [isManuallySet, setIsManuallySet] = useState(quizToEdit?.is_active !== undefined);
   const [preguntas, setPreguntas] = useState<Array<{
     id?: string;
     pregunta_texto: string;
@@ -2307,6 +2447,8 @@ function CreateQuizModal({
             setDescripcion(quiz.descripcion || '');
             setFechaInicio(new Date(quiz.fecha_inicio).toISOString().slice(0, 16));
             setFechaFin(new Date(quiz.fecha_fin).toISOString().slice(0, 16));
+            setIsActive(quiz.is_active !== undefined ? quiz.is_active : true);
+            setIsManuallySet(quiz.is_active !== undefined);
             setPreguntas(quiz.preguntas?.map((p: any) => ({
               id: p.id,
               pregunta_texto: p.pregunta_texto,
@@ -2463,6 +2605,7 @@ function CreateQuizModal({
         descripcion: descripcion.trim() || null,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        is_active: isActive,
         preguntas: preguntas.map(p => ({
           id: p.id,
           pregunta_texto: p.pregunta_texto.trim(),
@@ -2482,9 +2625,15 @@ function CreateQuizModal({
         body.subtema_id = subtemaId;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -2549,6 +2698,32 @@ function CreateQuizModal({
                 required
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => {
+                  setIsActive(e.target.checked);
+                  setIsManuallySet(true);
+                }}
+                style={{ width: 'auto', cursor: 'pointer' }}
+              />
+              <span>Activar quiz (visible para estudiantes)</span>
+            </label>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+              {isManuallySet 
+                ? 'Estado establecido manualmente. El quiz se activará/desactivará según tu selección.'
+                : `Estado automático: ${isActive ? 'Activo' : 'Inactivo'} (basado en las fechas de inicio y fin). Puedes cambiarlo manualmente si es necesario.`
+              }
+            </p>
+            {!isManuallySet && (
+              <p style={{ fontSize: '0.75rem', color: '#3b82f6', margin: '0.25rem 0 0 0', fontStyle: 'italic' }}>
+                💡 El quiz se activará automáticamente cuando la fecha actual esté entre la fecha de inicio y fin.
+              </p>
+            )}
           </div>
 
           <div className="form-group">
@@ -2720,6 +2895,167 @@ function CreateQuizModal({
             <button type="button" onClick={onClose} disabled={saving || loadingQuiz}>Cancelar</button>
             <button type="submit" disabled={saving || loadingQuiz || preguntas.length === 0}>
               {loadingQuiz ? 'Cargando...' : saving ? 'Guardando...' : quizToEdit?.id ? 'Actualizar Quiz' : 'Crear Quiz'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Modal para importar contenidos desde Excel
+function ImportContenidosModal({
+  periodId,
+  periodName,
+  onClose,
+  onContenidosImported,
+}: {
+  periodId: string;
+  periodName: string;
+  onClose: () => void;
+  onContenidosImported: () => void;
+}) {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [resultado, setResultado] = useState<any>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setArchivo(file);
+      setResultado(null);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    window.open('/api/contenido/download-template', '_blank');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!archivo) {
+      alert('Por favor selecciona un archivo');
+      return;
+    }
+
+    setImporting(true);
+    setResultado(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('archivo', archivo);
+      formData.append('periodo_id', periodId);
+
+      // Crear un AbortController para manejar timeouts
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutos de timeout
+
+      let response: Response;
+      try {
+        response = await fetch('/api/contenido/importar-contenidos', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('La importación está tomando demasiado tiempo. Por favor, intenta con un archivo más pequeño o verifica tu conexión.');
+        }
+        if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('NetworkError')) {
+          throw new Error('Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.');
+        }
+        throw fetchError;
+      }
+
+      // Verificar si la respuesta es JSON válido
+      let result: any;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Error del servidor: ${text || 'Respuesta inválida'}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al importar contenidos');
+      }
+
+      setResultado(result);
+      if (result.totalCreados > 0) {
+        alert(`Se importaron ${result.totalCreados} contenidos exitosamente${result.totalErrores > 0 ? ` (${result.totalErrores} errores)` : ''}`);
+        onContenidosImported();
+      } else if (result.totalErrores > 0) {
+        // Mostrar errores aunque no se hayan creado contenidos
+        console.log('Errores de importación:', result.errores);
+      }
+    } catch (err: any) {
+      console.error('Error al importar contenidos:', err);
+      const errorMessage = err.message || 'Error al importar contenidos. Por favor, verifica el archivo e intenta nuevamente.';
+      alert(errorMessage);
+      setResultado(null);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 2000 }}>
+      <div className="modal-container" style={{ maxWidth: '600px', zIndex: 2001 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Importar Contenidos - {periodName}</h2>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label>Archivo Excel (.xlsx) *</label>
+            <input type="file" accept=".xlsx,.xls" onChange={handleFileChange} required />
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+              El archivo debe tener las columnas: Tema, Subtema, Tipo (video/archivo/foro), Título, Descripción (opcional), URL_Video (opcional), URL_Archivo (opcional)
+            </p>
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+              }}
+            >
+              📥 Descargar Plantilla Excel
+            </button>
+          </div>
+
+          {resultado && (
+            <div style={{ padding: '1rem', background: resultado.totalErrores > 0 ? '#fef2f2' : '#f0fdf4', borderRadius: '8px', marginBottom: '1rem' }}>
+              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Resultado de la importación:</p>
+              <p>Contenidos creados: {resultado.totalCreados}</p>
+              {resultado.totalErrores > 0 && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <p style={{ fontWeight: 600, color: '#dc2626' }}>Errores: {resultado.totalErrores}</p>
+                  <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', maxHeight: '200px', overflowY: 'auto' }}>
+                    {resultado.errores?.map((error: string, index: number) => (
+                      <li key={index} style={{ fontSize: '0.875rem', color: '#dc2626' }}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={importing}>Cancelar</button>
+            <button type="submit" disabled={importing || !archivo}>
+              {importing ? 'Importando...' : 'Importar Contenidos'}
             </button>
           </div>
         </form>
