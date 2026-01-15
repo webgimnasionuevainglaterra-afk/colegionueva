@@ -35,16 +35,121 @@ export async function POST(request: NextRequest) {
     }
 
     if (intento.completado) {
+      // Si ya está completado, obtener las respuestas detalladas y devolver la calificación existente
+      const { data: respuestas } = await supabaseAdmin
+        .from('respuestas_estudiante')
+        .select(`
+          *,
+          opciones_respuesta:opcion_seleccionada_id (
+            id,
+            texto,
+            explicacion,
+            es_correcta
+          )
+        `)
+        .eq('intento_id', intento_id);
+
+      const { data: preguntas } = await supabaseAdmin
+        .from('preguntas')
+        .select(`
+          id,
+          pregunta_texto,
+          orden,
+          opciones_respuesta (
+            id,
+            texto,
+            explicacion,
+            es_correcta
+          )
+        `)
+        .eq('quiz_id', intento.quiz_id)
+        .order('orden', { ascending: true });
+
+      const totalPreguntas = preguntas?.length || 0;
+      const respuestasCorrectas = respuestas?.filter(r => r.es_correcta === true).length || 0;
+
+      // Construir el resumen detallado de respuestas
+      const resumenRespuestas = await Promise.all(
+        (preguntas || []).map(async (pregunta) => {
+          const respuestaEstudiante = respuestas?.find((r) => r.pregunta_id === pregunta.id);
+          
+          // Obtener la opción seleccionada por el estudiante con su explicación
+          let opcionSeleccionada = null;
+          if (respuestaEstudiante?.opcion_seleccionada_id) {
+            const { data: opcionSel } = await supabaseAdmin
+              .from('opciones_respuesta')
+              .select('id, texto, explicacion, es_correcta')
+              .eq('id', respuestaEstudiante.opcion_seleccionada_id)
+              .single();
+            opcionSeleccionada = opcionSel;
+          }
+          
+          // Obtener la opción correcta
+          const opcionCorrecta = Array.isArray(pregunta.opciones_respuesta) 
+            ? pregunta.opciones_respuesta.find((op: any) => op.es_correcta === true)
+            : null;
+          
+          // Si no hay opción correcta en el array, buscarla directamente
+          let opcionCorrectaFinal = opcionCorrecta;
+          if (!opcionCorrectaFinal) {
+            const { data: opcionCorr } = await supabaseAdmin
+              .from('opciones_respuesta')
+              .select('id, texto, explicacion, es_correcta')
+              .eq('pregunta_id', pregunta.id)
+              .eq('es_correcta', true)
+              .single();
+            opcionCorrectaFinal = opcionCorr;
+          }
+          
+          const esCorrecta = respuestaEstudiante?.es_correcta === true;
+
+          return {
+            pregunta_id: pregunta.id,
+            pregunta_texto: pregunta.pregunta_texto,
+            orden: pregunta.orden,
+            respuesta_estudiante: opcionSeleccionada ? {
+              id: opcionSeleccionada.id,
+              texto: opcionSeleccionada.texto,
+              explicacion: opcionSeleccionada.explicacion || null,
+            } : null,
+            respuesta_correcta: opcionCorrectaFinal ? {
+              id: opcionCorrectaFinal.id,
+              texto: opcionCorrectaFinal.texto,
+              explicacion: opcionCorrectaFinal.explicacion || null,
+            } : null,
+            es_correcta: esCorrecta,
+            no_respondida: !respuestaEstudiante,
+          };
+        })
+      );
+
       return NextResponse.json(
-        { error: 'Este intento ya fue completado' },
-        { status: 400 }
+        { 
+          data: intento,
+          resumen: {
+            total_preguntas: totalPreguntas,
+            respuestas_correctas: respuestasCorrectas,
+            calificacion: intento.calificacion || 0,
+          },
+          respuestas_detalladas: resumenRespuestas,
+          ya_completado: true
+        },
+        { status: 200 }
       );
     }
 
-    // Obtener todas las respuestas del intento
+    // Obtener todas las respuestas del intento con detalles completos
     const { data: respuestas, error: respuestasError } = await supabaseAdmin
       .from('respuestas_estudiante')
-      .select('*')
+      .select(`
+        *,
+        opciones_respuesta:opcion_seleccionada_id (
+          id,
+          texto,
+          explicacion,
+          es_correcta
+        )
+      `)
       .eq('intento_id', intento_id);
 
     if (respuestasError) {
@@ -55,11 +160,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener el total de preguntas del quiz
+    // Obtener todas las preguntas del quiz con sus opciones correctas
     const { data: preguntas, error: preguntasError } = await supabaseAdmin
       .from('preguntas')
-      .select('id')
-      .eq('quiz_id', intento.quiz_id);
+      .select(`
+        id,
+        pregunta_texto,
+        orden,
+        opciones_respuesta (
+          id,
+          texto,
+          explicacion,
+          es_correcta
+        )
+      `)
+      .eq('quiz_id', intento.quiz_id)
+      .order('orden', { ascending: true });
 
     if (preguntasError) {
       console.error('Error al obtener preguntas:', preguntasError);
@@ -76,6 +192,61 @@ export async function POST(request: NextRequest) {
     const calificacion = totalPreguntas > 0 
       ? (respuestasCorrectas / totalPreguntas) * 5 
       : 0;
+
+    // Construir el resumen detallado de respuestas
+    const resumenRespuestas = await Promise.all(
+      (preguntas || []).map(async (pregunta) => {
+        const respuestaEstudiante = respuestas?.find((r) => r.pregunta_id === pregunta.id);
+        
+        // Obtener la opción seleccionada por el estudiante
+        let opcionSeleccionada = null;
+        if (respuestaEstudiante?.opcion_seleccionada_id) {
+          const { data: opcionSel } = await supabaseAdmin
+            .from('opciones_respuesta')
+            .select('id, texto, explicacion, es_correcta')
+            .eq('id', respuestaEstudiante.opcion_seleccionada_id)
+            .single();
+          opcionSeleccionada = opcionSel;
+        }
+        
+        // Obtener la opción correcta
+        const opcionCorrecta = Array.isArray(pregunta.opciones_respuesta) 
+          ? pregunta.opciones_respuesta.find((op: any) => op.es_correcta === true)
+          : null;
+        
+        // Si no hay opción correcta en el array, buscarla directamente
+        let opcionCorrectaFinal = opcionCorrecta;
+        if (!opcionCorrectaFinal) {
+          const { data: opcionCorr } = await supabaseAdmin
+            .from('opciones_respuesta')
+            .select('id, texto, explicacion, es_correcta')
+            .eq('pregunta_id', pregunta.id)
+            .eq('es_correcta', true)
+            .single();
+          opcionCorrectaFinal = opcionCorr;
+        }
+        
+        const esCorrecta = respuestaEstudiante?.es_correcta === true;
+
+        return {
+          pregunta_id: pregunta.id,
+          pregunta_texto: pregunta.pregunta_texto,
+          orden: pregunta.orden,
+          respuesta_estudiante: opcionSeleccionada ? {
+            id: opcionSeleccionada.id,
+            texto: opcionSeleccionada.texto,
+            explicacion: opcionSeleccionada.explicacion || null,
+          } : null,
+          respuesta_correcta: opcionCorrectaFinal ? {
+            id: opcionCorrectaFinal.id,
+            texto: opcionCorrectaFinal.texto,
+            explicacion: opcionCorrectaFinal.explicacion || null,
+          } : null,
+          es_correcta: esCorrecta,
+          no_respondida: !respuestaEstudiante,
+        };
+      })
+    );
 
     // Actualizar el intento
     const { data: intentoActualizado, error: updateError } = await supabaseAdmin
@@ -104,7 +275,8 @@ export async function POST(request: NextRequest) {
           total_preguntas: totalPreguntas,
           respuestas_correctas: respuestasCorrectas,
           calificacion: parseFloat(calificacion.toFixed(2)),
-        }
+        },
+        respuestas_detalladas: resumenRespuestas
       },
       { status: 200 }
     );

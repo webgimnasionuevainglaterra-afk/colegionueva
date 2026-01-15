@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import StudentQuizViewer from './StudentQuizViewer';
 
 interface Contenido {
   id: string;
@@ -54,6 +55,179 @@ interface StudentSubjectContentProps {
   onTemaClear?: () => void;
 }
 
+// Componente para mostrar el botón de disponibilidad del quiz con conteo regresivo
+function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => void }) {
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [hasExpired, setHasExpired] = useState(false);
+
+  useEffect(() => {
+    const checkAvailability = () => {
+      const ahora = new Date();
+      // Asegurarse de que las fechas se parseen correctamente
+      const fechaInicio = new Date(quiz.fecha_inicio);
+      const fechaFin = new Date(quiz.fecha_fin);
+
+      // Logs de depuración
+      console.log('🕐 Verificando disponibilidad del quiz:', quiz.nombre);
+      console.log('🕐 Fecha inicio (string):', quiz.fecha_inicio);
+      console.log('🕐 Fecha inicio (Date):', fechaInicio);
+      console.log('🕐 Fecha fin (string):', quiz.fecha_fin);
+      console.log('🕐 Fecha fin (Date):', fechaFin);
+      console.log('🕐 Ahora:', ahora);
+      console.log('🕐 Ahora < Inicio?', ahora < fechaInicio);
+      console.log('🕐 Ahora > Fin?', ahora > fechaFin);
+
+      // Validar que las fechas sean válidas
+      if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
+        console.error('❌ Fechas inválidas para el quiz:', quiz.nombre);
+        setIsAvailable(false);
+        setHasExpired(false);
+        setTimeRemaining(null);
+        return;
+      }
+
+      if (ahora < fechaInicio) {
+        // Quiz aún no está disponible - calcular tiempo restante
+        const diff = fechaInicio.getTime() - ahora.getTime();
+        const seconds = Math.max(0, Math.floor(diff / 1000));
+        console.log('⏰ Quiz no disponible aún. Tiempo restante:', seconds, 'segundos');
+        setTimeRemaining(seconds);
+        setIsAvailable(false);
+        setHasExpired(false);
+      } else if (ahora > fechaFin) {
+        // Quiz ya expiró
+        console.log('❌ Quiz ya expiró');
+        setIsAvailable(false);
+        setHasExpired(true);
+        setTimeRemaining(null);
+      } else {
+        // Quiz está disponible
+        console.log('✅ Quiz está disponible');
+        setIsAvailable(true);
+        setHasExpired(false);
+        setTimeRemaining(null);
+      }
+    };
+
+    // Verificar inmediatamente
+    checkAvailability();
+
+    // Actualizar cada segundo si el quiz no está disponible aún
+    const interval = setInterval(() => {
+      checkAvailability();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [quiz.fecha_inicio, quiz.fecha_fin, quiz.nombre]);
+
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds <= 0) return '0s';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+
+    return parts.join(' ');
+  };
+
+  if (isAvailable) {
+    return (
+      <button
+        onClick={onStart}
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#2563eb',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#1d4ed8';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#2563eb';
+        }}
+      >
+        📝 Presentar Quiz
+      </button>
+    );
+  }
+
+  if (hasExpired) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+        }}
+      >
+        ⏰ Quiz Finalizado
+      </button>
+    );
+  }
+
+  // Quiz aún no está disponible - mostrar conteo regresivo
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#f59e0b',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+        }}
+      >
+        <span>⏰ Disponible en:</span>
+        <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>
+          {timeRemaining !== null && timeRemaining > 0 ? formatTimeRemaining(timeRemaining) : 'Calculando...'}
+        </span>
+      </button>
+      {timeRemaining !== null && timeRemaining > 0 && (
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', margin: 0 }}>
+          Inicia: {new Date(quiz.fecha_inicio).toLocaleString('es-ES', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function StudentSubjectContent({ 
   subjectId, 
   subjectName, 
@@ -76,6 +250,24 @@ export default function StudentSubjectContent({
   const [selectedTema, setSelectedTema] = useState<{ tema: Tema; periodoNombre: string } | null>(null);
   const [quizzesPorSubtema, setQuizzesPorSubtema] = useState<Record<string, Quiz[]>>({});
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const [expandedPeriodoId, setExpandedPeriodoId] = useState<string | null>(null);
+  
+  // Función para toggle del acordeón de periodos
+  const togglePeriodo = useCallback((periodoId: string) => {
+    console.log('🔄 togglePeriodo llamado con periodoId:', periodoId);
+    setExpandedPeriodoId((prev) => {
+      const newValue = prev === periodoId ? null : periodoId;
+      console.log('🔄 Estado anterior:', prev, '→ Nuevo estado:', newValue);
+      return newValue;
+    });
+  }, []);
+  
+  // Debug: Ver cuando cambia el estado expandedPeriodoId
+  useEffect(() => {
+    console.log('📊 expandedPeriodoId cambió a:', expandedPeriodoId);
+    console.log('📊 Periodos disponibles:', periodos.map(p => ({ id: p.id, nombre: p.nombre })));
+  }, [expandedPeriodoId, periodos]);
   
   // Sincronizar tema seleccionado desde el sidebar
   useEffect(() => {
@@ -257,6 +449,45 @@ export default function StudentSubjectContent({
   // NO EJECUTAR NINGÚN CÓDIGO DESPUÉS DE ESTE RETURN
   // ============================================
   if (tieneTemaValido) {
+    // Si hay un quiz seleccionado, mostrar el visor de quiz
+    if (selectedQuizId) {
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={() => setSelectedQuizId(null)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#f3f4f6',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+              }}
+            >
+              ← Volver al tema
+            </button>
+          </div>
+          <StudentQuizViewer
+            quizId={selectedQuizId}
+            onClose={() => setSelectedQuizId(null)}
+            onComplete={(calificacion) => {
+              console.log('Quiz completado con calificación:', calificacion);
+              // Opcional: mostrar notificación o actualizar estado
+            }}
+          />
+        </div>
+      );
+    }
     // FORZAR RETURN - NO CONTINUAR CON EL CÓDIGO DE ABAJO
     console.log('🎯 ========== RENDERIZANDO SOLO EL TEMA SELECCIONADO (RETORNO INMEDIATO) ==========');
     console.log('🎯 Tema ID:', temaParaMostrar.tema.id);
@@ -546,195 +777,97 @@ export default function StudentSubjectContent({
                   <div style={{ padding: '1.5rem', textAlign: 'center', color: '#6b7280' }}>
                     Cargando quices...
                   </div>
-                ) : quizzesPorSubtema[subtema.id] && quizzesPorSubtema[subtema.id].length > 0 && (
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: '1.125rem',
-                        fontWeight: 600,
-                        color: '#374151',
-                        marginBottom: '1.25rem',
-                      }}
-                    >
-                      Quices
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {quizzesPorSubtema[subtema.id].map((quiz) => (
-                        <div
-                          key={quiz.id}
-                          style={{
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '10px',
-                            padding: '1.5rem',
-                            background: '#fef3c7',
-                          }}
-                        >
-                          <h4
+                ) : (
+                  quizzesPorSubtema[subtema.id] && quizzesPorSubtema[subtema.id].length > 0 && (
+                    <div>
+                      <h3
+                        style={{
+                          fontSize: '1.125rem',
+                          fontWeight: 600,
+                          color: '#374151',
+                          marginBottom: '1.25rem',
+                        }}
+                      >
+                        Quices
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {quizzesPorSubtema[subtema.id].map((quiz) => (
+                          <div
+                            key={quiz.id}
                             style={{
-                              fontSize: '1.125rem',
-                              fontWeight: 600,
-                              color: '#92400e',
-                              marginBottom: '0.75rem',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '10px',
+                              padding: '1.5rem',
+                              background: '#fef3c7',
                             }}
                           >
-                            📝 {quiz.nombre}
-                          </h4>
-                          {quiz.descripcion && (
-                            <p
+                            <h4
                               style={{
-                                fontSize: '0.95rem',
-                                color: '#78350f',
+                                fontSize: '1.125rem',
+                                fontWeight: 600,
+                                color: '#92400e',
                                 marginBottom: '0.75rem',
-                                lineHeight: '1.6',
                               }}
                             >
-                              {quiz.descripcion}
-                            </p>
-                          )}
-                          <div
-                            style={{
-                              fontSize: '0.875rem',
-                              color: '#92400e',
-                              display: 'flex',
-                              gap: '1.5rem',
-                            }}
-                          >
-                            <div>
-                              <strong>Fecha inicio:</strong> {new Date(quiz.fecha_inicio).toLocaleDateString()}
+                              📝 {quiz.nombre}
+                            </h4>
+                            {quiz.descripcion && (
+                              <p
+                                style={{
+                                  fontSize: '0.95rem',
+                                  color: '#78350f',
+                                  marginBottom: '0.75rem',
+                                  lineHeight: '1.6',
+                                }}
+                              >
+                                {quiz.descripcion}
+                              </p>
+                            )}
+                            <div
+                              style={{
+                                fontSize: '0.875rem',
+                                color: '#92400e',
+                                display: 'flex',
+                                gap: '1.5rem',
+                                marginBottom: '1rem',
+                              }}
+                            >
+                              <div>
+                                <strong>Fecha inicio:</strong> {new Date(quiz.fecha_inicio).toLocaleDateString()}
+                              </div>
+                              <div>
+                                <strong>Fecha fin:</strong> {new Date(quiz.fecha_fin).toLocaleDateString()}
+                              </div>
                             </div>
-                            <div>
-                              <strong>Fecha fin:</strong> {new Date(quiz.fecha_fin).toLocaleDateString()}
-                            </div>
+                            {/* Botón para presentar el quiz con conteo regresivo */}
+                            <QuizAvailabilityButton
+                              quiz={quiz}
+                              onStart={() => setSelectedQuizId(quiz.id)}
+                            />
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
                 </div>
               );
             })}
-          </div>
-        ) : (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af', background: 'white', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-            <p style={{ fontSize: '1.125rem' }}>Este tema no tiene subtemas aún.</p>
-          </div>
-        )}
-      </div>
-    );
-  }
-  
-  // Sincronizar tema seleccionado desde el sidebar
-  useEffect(() => {
-    console.log('🔄 selectedTemaFromSidebar cambió:', selectedTemaFromSidebar);
-    if (selectedTemaFromSidebar && selectedTemaFromSidebar.tema && selectedTemaFromSidebar.tema.id) {
-      console.log('✅ Estableciendo tema seleccionado:', selectedTemaFromSidebar);
-      console.log('✅ Tema ID:', selectedTemaFromSidebar.tema.id);
-      console.log('✅ Tema nombre:', selectedTemaFromSidebar.tema.nombre);
-      console.log('✅ Tema tiene subtemas:', selectedTemaFromSidebar.tema.subtemas?.length || 0);
-      // Solo actualizar si es diferente al estado actual
-      setSelectedTema((prev) => {
-        if (prev?.tema?.id !== selectedTemaFromSidebar.tema.id) {
-          console.log('✅ Actualizando estado local con nuevo tema');
-          return selectedTemaFromSidebar;
-        }
-        console.log('⏭️ Tema ya está en el estado, no actualizar');
-        return prev;
-      });
-    } else {
-      console.log('❌ Limpiando tema seleccionado - selectedTemaFromSidebar no es válido');
-      setSelectedTema(null);
-    }
-  }, [selectedTemaFromSidebar]);
-
-  useEffect(() => {
-    if (!subjectId) {
-      setPeriodos([]);
-      setSelectedContent(null);
-      // NO limpiar selectedTema si hay un tema seleccionado desde el sidebar
-      // Solo limpiar si no hay tema seleccionado desde el sidebar
-      if (!selectedTemaFromSidebar) {
-        setSelectedTema(null);
-      }
-      return;
+            </div>
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
+              <p>Este tema no tiene subtemas aún.</p>
+            </div>
+          )}
+        </div>
+      );
     }
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setSelectedContent(null);
-        // IMPORTANTE: NO limpiar selectedTema aquí porque podría estar seleccionado desde el sidebar
-        // El tema seleccionado se maneja en el useEffect de selectedTemaFromSidebar
-
-        const response = await fetch(`/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`);
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || 'Error al cargar los contenidos de la materia');
-        }
-
-        setPeriodos(result.data || []);
-      } catch (err: any) {
-        console.error('Error al cargar contenidos de la materia:', err);
-        setError(err.message || 'Error al cargar los contenidos de la materia');
-        setPeriodos([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [subjectId, selectedTemaFromSidebar]);
-
-  // Cargar quices cuando se selecciona un tema
-  useEffect(() => {
-    const temaActual = selectedTemaFromSidebar || selectedTema;
-    
-    if (!temaActual) {
-      setQuizzesPorSubtema({});
-      return;
-    }
-
-    const fetchQuizzes = async () => {
-      setLoadingQuizzes(true);
-      const quizzes: Record<string, Quiz[]> = {};
-
-      try {
-        // Obtener quices de todos los subtemas del tema seleccionado
-        const promises = temaActual.tema.subtemas.map(async (subtema) => {
-          try {
-            const response = await fetch(`/api/quizzes/get-quiz?subtema_id=${subtema.id}`);
-            const result = await response.json();
-            if (response.ok && result.data) {
-              // Filtrar solo quices activos
-              quizzes[subtema.id] = result.data.filter((q: Quiz) => q.is_active !== false);
-            } else {
-              quizzes[subtema.id] = [];
-            }
-          } catch (err) {
-            console.error(`Error al cargar quices del subtema ${subtema.id}:`, err);
-            quizzes[subtema.id] = [];
-          }
-        });
-
-        await Promise.all(promises);
-        setQuizzesPorSubtema(quizzes);
-      } catch (err) {
-        console.error('Error al cargar quices:', err);
-      } finally {
-        setLoadingQuizzes(false);
-      }
-    };
-
-    fetchQuizzes();
-  }, [selectedTemaFromSidebar, selectedTema]);
-
-  // ============================================
-  // SI LLEGAMOS AQUÍ, NO HAY TEMA SELECCIONADO
-  // MOSTRAR LA VISTA NORMAL CON TODOS LOS PERIODOS
-  // ============================================
-  console.log('📋 ========== NO HAY TEMA SELECCIONADO - MOSTRANDO TODOS LOS PERIODOS ==========');
+    // ============================================
+    // SI LLEGAMOS AQUÍ, NO HAY TEMA SELECCIONADO
+    // MOSTRAR LA VISTA NORMAL CON TODOS LOS PERIODOS
+    // ============================================
+    console.log('📋 ========== NO HAY TEMA SELECCIONADO - MOSTRANDO TODOS LOS PERIODOS ==========');
   console.log('📋 ⚠️ ADVERTENCIA: Si ves este log cuando hay un tema seleccionado, hay un problema');
   console.log('📋 selectedTemaFromSidebar:', selectedTemaFromSidebar);
   console.log('📋 selectedTema local:', selectedTema);
@@ -810,16 +943,26 @@ export default function StudentSubjectContent({
                 boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
               }}
             >
-              <div
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('🖱️ Click en periodo:', periodo.id);
+                  togglePeriodo(periodo.id);
+                }}
                 style={{
+                  width: '100%',
                   padding: '0.9rem 1rem',
-                  borderBottom: '1px solid #f3f4f6',
+                  border: 'none',
+                  borderBottom: expandedPeriodoId === periodo.id ? '1px solid #f3f4f6' : 'none',
+                  background: 'transparent',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  cursor: 'pointer',
+                  textAlign: 'left',
                 }}
               >
-                <div>
+                <div style={{ flex: 1 }}>
                   <div
                     style={{
                       fontWeight: 600,
@@ -838,8 +981,27 @@ export default function StudentSubjectContent({
                     {getPeriodNumberName(periodo.numero_periodo)} periodo
                   </div>
                 </div>
-              </div>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    transform: expandedPeriodoId === periodo.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease-in-out',
+                    color: '#6b7280',
+                    flexShrink: 0,
+                  }}
+                >
+                  <path d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
+              {expandedPeriodoId === periodo.id && (
               <div style={{ padding: '0.75rem 1rem 0.9rem 1rem' }}>
                 {(!periodo.temas || periodo.temas.length === 0) && (
                   <p
@@ -964,11 +1126,11 @@ export default function StudentSubjectContent({
                                 color: '#6b7280',
                               }}
                             >
-                              {contenido.tipo === 'video'
-                                ? 'Video'
-                                : contenido.tipo === 'archivo'
-                                ? 'Archivo'
-                                : 'Foro'}
+                              {contenido.tipo === 'video' 
+                                ? 'Video' 
+                                : (contenido.tipo === 'archivo' 
+                                ? 'Archivo' 
+                                : 'Foro')}
                             </span>
                           </button>
                         ))}
@@ -977,6 +1139,7 @@ export default function StudentSubjectContent({
                   </div>
                 ))}
               </div>
+              )}
             </div>
           ))
         )}

@@ -62,8 +62,13 @@ export async function POST(request: NextRequest) {
 
     if (intentoExistente) {
       if (intentoExistente.completado) {
+        // Retornar el ID del intento completado para que el frontend pueda obtener los detalles
         return NextResponse.json(
-          { error: 'Ya has completado este quiz' },
+          { 
+            error: 'Ya has completado este quiz',
+            intento_id: intentoExistente.id,
+            ya_completado: true
+          },
           { status: 400 }
         );
       }

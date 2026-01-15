@@ -2009,9 +2009,35 @@ function CreateContenidoModal({ onClose, onCreate, subtemaNombre, subtemaDescrip
             return;
           }
         } else {
-          const errorData = await uploadResponse.json();
-          console.error('❌ Error al subir archivos:', errorData);
-          alert(errorData.error || 'Error al subir archivos');
+          // Intentar obtener el mensaje de error de la respuesta
+          let errorMessage = `Error ${uploadResponse.status}: ${uploadResponse.statusText || 'Error desconocido al subir archivos'}`;
+          try {
+            // Verificar si hay contenido en la respuesta antes de intentar parsearlo
+            const responseText = await uploadResponse.text();
+            
+            if (responseText && responseText.trim().length > 0) {
+              try {
+                const errorData = JSON.parse(responseText);
+                console.error('❌ Error al subir archivos (JSON):', errorData);
+                // Solo usar errorData si tiene propiedades útiles
+                if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
+                  errorMessage = errorData.error || errorData.message || errorMessage;
+                } else if (typeof errorData === 'string') {
+                  errorMessage = errorData;
+                }
+              } catch (jsonError) {
+                // Si no es JSON válido, usar el texto directamente
+                console.error('❌ Error al subir archivos (texto):', responseText);
+                errorMessage = responseText || errorMessage;
+              }
+            } else {
+              console.error('❌ Respuesta de error vacía. Status:', uploadResponse.status, 'StatusText:', uploadResponse.statusText);
+            }
+          } catch (parseError: any) {
+            console.error('❌ Error al leer respuesta de error:', parseError);
+            errorMessage = `Error ${uploadResponse.status}: ${uploadResponse.statusText || parseError.message || 'Error desconocido al subir archivos'}`;
+          }
+          alert(errorMessage);
           setUploading(false);
           return;
         }
@@ -2226,14 +2252,31 @@ function EditContenidoModal({
             return;
           }
         } else {
-          const errorData = await uploadResponse.json();
-          console.error('❌ Error al subir archivos (editar):', errorData);
-          alert(errorData.error || 'Error al subir archivos');
+          // Intentar obtener el mensaje de error de la respuesta
+          let errorMessage = 'Error al subir archivos';
+          try {
+            const contentType = uploadResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await uploadResponse.json();
+              console.error('❌ Error al subir archivos (editar):', errorData);
+              errorMessage = errorData.error || errorData.message || `Error ${uploadResponse.status}: ${uploadResponse.statusText}`;
+            } else {
+              // Si no es JSON, intentar leer como texto
+              const errorText = await uploadResponse.text();
+              console.error('❌ Error al subir archivos (editar, texto):', errorText);
+              errorMessage = errorText || `Error ${uploadResponse.status}: ${uploadResponse.statusText}`;
+            }
+          } catch (parseError) {
+            console.error('❌ Error al parsear respuesta de error (editar):', parseError);
+            errorMessage = `Error ${uploadResponse.status}: ${uploadResponse.statusText || 'Error desconocido al subir archivos'}`;
+          }
+          alert(errorMessage);
           setUploading(false);
           return;
         }
       } catch (err: any) {
-        alert('Error al subir archivos: ' + err.message);
+        console.error('❌ Error en catch al subir archivos (editar):', err);
+        alert('Error al subir archivos: ' + (err.message || 'Error desconocido'));
         setUploading(false);
         return;
       }

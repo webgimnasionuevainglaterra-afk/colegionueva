@@ -80,7 +80,27 @@ export async function POST(request: NextRequest) {
 
       if (uploadError) {
         console.error('Error al subir archivo:', uploadError);
-        continue; // Continuar con el siguiente archivo
+        console.error('Detalles del error:', {
+          message: uploadError.message,
+          name: uploadError.name
+        });
+        
+        // Si es un error crítico (bucket no existe, permisos), devolver error inmediatamente
+        const errorMessage = uploadError.message || '';
+        if (errorMessage.includes('Bucket not found') || 
+            errorMessage.includes('bucket') ||
+            errorMessage.includes('permission') ||
+            errorMessage.includes('row-level security') ||
+            errorMessage.includes('not found')) {
+          return NextResponse.json(
+            { 
+              error: uploadError.message || 'Error al subir archivos. Verifica que el bucket "contenido" exista y tenga los permisos correctos en Supabase Storage.' 
+            },
+            { status: 500 }
+          );
+        }
+        
+        continue; // Continuar con el siguiente archivo para otros errores
       }
 
       // Obtener URL pública
@@ -97,8 +117,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (uploadedFiles.length === 0) {
+      // Verificar si el bucket existe
+      const { data: buckets, error: bucketsError } = await supabaseAdmin.storage.listBuckets();
+      let bucketExists = false;
+      
+      if (!bucketsError && buckets) {
+        bucketExists = buckets.some(b => b.id === 'contenido');
+      }
+      
+      let errorMessage = 'No se pudieron subir los archivos. ';
+      if (!bucketExists) {
+        errorMessage += 'El bucket "contenido" no existe en Supabase Storage. Por favor, créalo desde el dashboard de Supabase.';
+      } else {
+        errorMessage += 'Asegúrate de que los archivos sean PDF, JPG o PNG y que no excedan el tamaño máximo permitido.';
+      }
+      
       return NextResponse.json(
-        { error: 'No se pudieron subir los archivos. Asegúrate de que sean PDF, JPG o PNG' },
+        { error: errorMessage },
         { status: 400 }
       );
     }
@@ -122,8 +157,22 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('Error en upload-files:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Mensaje de error más descriptivo
+    let errorMessage = error.message || 'Error interno del servidor al subir archivos';
+    
+    // Mensajes específicos para errores comunes
+    if (error.message?.includes('Bucket not found') || error.message?.includes('bucket')) {
+      errorMessage = 'El bucket "contenido" no existe en Supabase Storage. Por favor, créalo desde el dashboard de Supabase.';
+    } else if (error.message?.includes('permission') || error.message?.includes('row-level security')) {
+      errorMessage = 'Error de permisos. Verifica las políticas RLS del bucket "contenido" en Supabase Storage.';
+    } else if (error.message?.includes('File size')) {
+      errorMessage = 'El archivo es demasiado grande. Por favor, sube un archivo más pequeño.';
+    }
+    
     return NextResponse.json(
-      { error: error.message || 'Error interno del servidor' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
