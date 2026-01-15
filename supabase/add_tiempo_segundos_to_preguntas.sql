@@ -9,3 +9,6 @@ UPDATE preguntas
 SET tiempo_segundos = 30 
 WHERE tiempo_segundos IS NULL;
 
+
+
+

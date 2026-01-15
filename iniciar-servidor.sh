@@ -56,3 +56,6 @@ echo ""
 # Iniciar servidor con variables de entorno correctas
 HOSTNAME=localhost npm run dev
 
+
+
+

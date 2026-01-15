@@ -153,7 +153,8 @@ export async function GET(request: NextRequest) {
           descripcion,
           subtema_id,
           fecha_inicio,
-          fecha_fin
+          fecha_fin,
+          is_active
         `)
         .in('subtema_id', subtemaIds);
 
@@ -260,6 +261,7 @@ export async function GET(request: NextRequest) {
           nombre,
           descripcion,
           periodo_id,
+          is_active,
           materia_id,
           fecha_inicio,
           fecha_fin,

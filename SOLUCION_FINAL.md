@@ -59,3 +59,6 @@ El servidor debe iniciarse desde tu terminal local, NO desde Cursor, para evitar
 - Una vez que funcione, podemos restaurar el layout y página originales
 - Los backups están guardados como `layout-backup.tsx` y `page-backup.tsx`
 
+
+
+

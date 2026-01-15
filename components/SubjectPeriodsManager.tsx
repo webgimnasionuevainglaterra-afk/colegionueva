@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-client';
 import CreatePeriodForm from './CreatePeriodForm';
 import EditPeriodForm from './EditPeriodForm';
 import PeriodContentManager from './PeriodContentManager';
@@ -484,6 +485,24 @@ function CreateEvaluacionModal({
   const [descripcion, setDescripcion] = useState(evaluacionToEdit?.descripcion || '');
   const [fechaInicio, setFechaInicio] = useState(evaluacionToEdit?.fecha_inicio ? new Date(evaluacionToEdit.fecha_inicio).toISOString().slice(0, 16) : '');
   const [fechaFin, setFechaFin] = useState(evaluacionToEdit?.fecha_fin ? new Date(evaluacionToEdit.fecha_fin).toISOString().slice(0, 16) : '');
+  // Calcular isActive inicial basado en fechas si no hay evaluación para editar
+  const calcularIsActiveInicial = () => {
+    if (evaluacionToEdit?.is_active !== undefined) {
+      return evaluacionToEdit.is_active;
+    }
+    // Si no hay fechas aún, por defecto true
+    if (!fechaInicio || !fechaFin) {
+      return true;
+    }
+    // Calcular basado en fechas: activo si la fecha actual está entre inicio y fin
+    const ahora = new Date();
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    return ahora >= inicio && ahora <= fin;
+  };
+  
+  const [isActive, setIsActive] = useState(calcularIsActiveInicial());
+  const [isManuallySet, setIsManuallySet] = useState(evaluacionToEdit?.is_active !== undefined);
   const [preguntas, setPreguntas] = useState<Array<{
     id?: string;
     pregunta_texto: string;
@@ -521,6 +540,7 @@ function CreateEvaluacionModal({
             setDescripcion(evaluacion.descripcion || '');
             setFechaInicio(new Date(evaluacion.fecha_inicio).toISOString().slice(0, 16));
             setFechaFin(new Date(evaluacion.fecha_fin).toISOString().slice(0, 16));
+            setIsActive(evaluacion.is_active !== undefined ? evaluacion.is_active : true);
             setPreguntas(evaluacion.preguntas?.map((p: any) => ({
               id: p.id,
               pregunta_texto: p.pregunta_texto,
@@ -677,6 +697,7 @@ function CreateEvaluacionModal({
         descripcion: descripcion.trim() || null,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        is_active: isActive,
         preguntas: preguntas.map(p => ({
           id: p.id,
           pregunta_texto: p.pregunta_texto.trim(),
@@ -697,9 +718,15 @@ function CreateEvaluacionModal({
         body.materia_id = materiaId;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -764,6 +791,32 @@ function CreateEvaluacionModal({
                 required
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => {
+                  setIsActive(e.target.checked);
+                  setIsManuallySet(true);
+                }}
+                style={{ width: 'auto', cursor: 'pointer' }}
+              />
+              <span>Activar evaluación (visible para estudiantes)</span>
+            </label>
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+              {isManuallySet 
+                ? 'Estado establecido manualmente. La evaluación se activará/desactivará según tu selección.'
+                : `Estado automático: ${isActive ? 'Activo' : 'Inactivo'} (basado en las fechas de inicio y fin). Puedes cambiarlo manualmente si es necesario.`
+              }
+            </p>
+            {!isManuallySet && (
+              <p style={{ fontSize: '0.75rem', color: '#3b82f6', margin: '0.25rem 0 0 0', fontStyle: 'italic' }}>
+                💡 La evaluación se activará automáticamente cuando la fecha actual esté entre la fecha de inicio y fin.
+              </p>
+            )}
           </div>
 
           <div className="form-group">

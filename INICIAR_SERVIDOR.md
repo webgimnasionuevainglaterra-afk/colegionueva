@@ -53,3 +53,6 @@ Los errores aparecerán en rojo en la terminal donde ejecutaste `npm run dev`
 - Puedes acceder a http://localhost:3003 en el navegador
 - No hay errores en rojo en la terminal
 
+
+
+

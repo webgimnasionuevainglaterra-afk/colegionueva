@@ -986,21 +986,23 @@ export default function PeriodContentManager({
                             {/* Mostrar video si existe */}
                             {item.url && getYouTubeEmbedUrl(item.url) && (
                               <div className="contenido-card-video">
+                                <div className="video-preview-wrapper">
+                                  <iframe
+                                    className="video-preview-iframe"
+                                    src={getYouTubeEmbedUrl(item.url) || ''}
+                                    title={item.titulo}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                </div>
                                 <a
                                   href={item.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  style={{ display: 'block', textDecoration: 'none' }}
+                                  className="content-link"
+                                  style={{ marginTop: '0.5rem', display: 'inline-block' }}
                                 >
-                                  <div className="video-preview-wrapper">
-                                    <iframe
-                                      className="video-preview-iframe"
-                                      src={getYouTubeEmbedUrl(item.url) || ''}
-                                      title={item.titulo}
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  </div>
+                                  🔗 Abrir en YouTube
                                 </a>
                               </div>
                             )}

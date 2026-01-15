@@ -19,8 +19,8 @@
 }
 
 .logo-image {
-  width: 80px;
-  height: 80px;
+  width: 265px;
+  height: 98px;
   object-fit: contain;
 }
 
@@ -60,6 +60,7 @@
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
+  margin-right: auto;
 }
 
 .mobile-menu-toggle {
@@ -89,13 +90,14 @@
 .header-logo {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   margin: 0;
   padding: 0;
 }
 
 .logo-image {
-  width: 80px;
-  height: 80px;
+  width: 265px;
+  height: 98px;
   object-fit: contain;
 }
 

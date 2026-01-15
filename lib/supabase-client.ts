@@ -22,3 +22,6 @@ export type Database = {
   // Aquí puedes agregar los tipos de tu base de datos cuando los definas
 };
 
+
+
+

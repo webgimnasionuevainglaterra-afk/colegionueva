@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       descripcion, 
       fecha_inicio,
       fecha_fin,
+      is_active, // Si no se especifica, se calculará automáticamente
       preguntas 
     } = body;
 
@@ -44,6 +45,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Obtener el usuario autenticado
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: 'Usuario no válido' },
+        { status: 401 }
+      );
+    }
+
+    // Verificar si el usuario es un profesor
+    const { data: profesor, error: profesorError } = await supabaseAdmin
+      .from('profesores')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profesorError && profesor) {
+      // Si es profesor, verificar que el subtema pertenece a un curso asignado
+      const { data: subtemaData, error: subtemaError } = await supabaseAdmin
+        .from('subtemas')
+        .select(`
+          id,
+          tema_id,
+          temas (
+            id,
+            periodo_id,
+            periodos (
+              id,
+              materia_id,
+              materias (
+                id,
+                curso_id
+              )
+            )
+          )
+        `)
+        .eq('id', subtema_id)
+        .single();
+
+      if (subtemaError || !subtemaData) {
+        return NextResponse.json(
+          { error: 'Subtema no encontrado' },
+          { status: 404 }
+        );
+      }
+
+      const cursoId = subtemaData.temas?.periodos?.materias?.curso_id;
+      if (!cursoId) {
+        return NextResponse.json(
+          { error: 'No se pudo determinar el curso del subtema' },
+          { status: 400 }
+        );
+      }
+
+      // Verificar que el profesor tiene asignado este curso
+      const { data: cursoAsignado, error: cursoError } = await supabaseAdmin
+        .from('profesores_cursos')
+        .select('id')
+        .eq('profesor_id', user.id)
+        .eq('curso_id', cursoId)
+        .single();
+
+      if (cursoError || !cursoAsignado) {
+        return NextResponse.json(
+          { error: 'No tienes permiso para crear quizzes en este curso' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Validar que cada pregunta tenga al menos 2 opciones y una correcta
     for (const pregunta of preguntas) {
       if (!pregunta.pregunta_texto || !pregunta.opciones || pregunta.opciones.length < 2) {
@@ -61,12 +142,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calcular is_active automáticamente si no se especifica manualmente
+    // Se activa si la fecha actual está entre fecha_inicio y fecha_fin
+    let isActiveValue: boolean;
+    if (is_active !== undefined) {
+      // Si el profesor especificó manualmente, usar ese valor
+      isActiveValue = is_active;
+    } else {
+      // Calcular automáticamente basado en las fechas
+      const ahora = new Date();
+      const inicio = new Date(fecha_inicio);
+      const fin = new Date(fecha_fin);
+      isActiveValue = ahora >= inicio && ahora <= fin;
+    }
+
     // Crear el quiz
     const { data: quiz, error: quizError } = await supabaseAdmin
       .from('quizzes')
       .insert({
         subtema_id,
         nombre,
+        is_active: isActiveValue,
         descripcion: descripcion || null,
         tiempo_por_pregunta_segundos: 30, // Mantener por compatibilidad, pero ya no se usa
         fecha_inicio,

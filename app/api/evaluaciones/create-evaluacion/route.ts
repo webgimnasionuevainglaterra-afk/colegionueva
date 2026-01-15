@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       descripcion, 
       fecha_inicio,
       fecha_fin,
+      is_active, // Si no se especifica, se calculará automáticamente
       preguntas 
     } = body;
 
@@ -45,6 +46,78 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Obtener el usuario autenticado
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: 'Usuario no válido' },
+        { status: 401 }
+      );
+    }
+
+    // Verificar si el usuario es un profesor
+    const { data: profesor, error: profesorError } = await supabaseAdmin
+      .from('profesores')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profesorError && profesor) {
+      // Si es profesor, verificar que la materia pertenece a un curso asignado
+      const { data: materiaData, error: materiaError } = await supabaseAdmin
+        .from('materias')
+        .select('id, curso_id')
+        .eq('id', materia_id)
+        .single();
+
+      if (materiaError || !materiaData) {
+        return NextResponse.json(
+          { error: 'Materia no encontrada' },
+          { status: 404 }
+        );
+      }
+
+      // Verificar que el periodo pertenece a esta materia
+      const { data: periodoData, error: periodoError } = await supabaseAdmin
+        .from('periodos')
+        .select('id, materia_id')
+        .eq('id', periodo_id)
+        .eq('materia_id', materia_id)
+        .single();
+
+      if (periodoError || !periodoData) {
+        return NextResponse.json(
+          { error: 'El periodo no pertenece a la materia especificada' },
+          { status: 400 }
+        );
+      }
+
+      // Verificar que el profesor tiene asignado este curso
+      const { data: cursoAsignado, error: cursoError } = await supabaseAdmin
+        .from('profesores_cursos')
+        .select('id')
+        .eq('profesor_id', user.id)
+        .eq('curso_id', materiaData.curso_id)
+        .single();
+
+      if (cursoError || !cursoAsignado) {
+        return NextResponse.json(
+          { error: 'No tienes permiso para crear evaluaciones en este curso' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Validar que cada pregunta tenga al menos 2 opciones y una correcta
     for (const pregunta of preguntas) {
       if (!pregunta.pregunta_texto || !pregunta.opciones || pregunta.opciones.length < 2) {
@@ -62,6 +135,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calcular is_active automáticamente si no se especifica manualmente
+    // Se activa si la fecha actual está entre fecha_inicio y fecha_fin
+    let isActiveValue: boolean;
+    if (is_active !== undefined) {
+      // Si el profesor especificó manualmente, usar ese valor
+      isActiveValue = is_active;
+    } else {
+      // Calcular automáticamente basado en las fechas
+      const ahora = new Date();
+      const inicio = new Date(fecha_inicio);
+      const fin = new Date(fecha_fin);
+      isActiveValue = ahora >= inicio && ahora <= fin;
+    }
+
     // Crear la evaluación
     const { data: evaluacion, error: evaluacionError } = await supabaseAdmin
       .from('evaluaciones_periodo')
@@ -73,6 +160,7 @@ export async function POST(request: NextRequest) {
         tiempo_por_pregunta_segundos: 30, // Mantener por compatibilidad
         fecha_inicio,
         fecha_fin,
+        is_active: isActiveValue,
       })
       .select()
       .single();

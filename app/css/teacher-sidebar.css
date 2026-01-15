@@ -1,3 +1,15 @@
+/* Animación para notificaciones toast */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* Teacher Sidebar Responsive Styles */
 .teacher-sidebar {
   width: 320px;

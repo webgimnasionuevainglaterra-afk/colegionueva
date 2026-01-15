@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('evaluaciones_periodo')
-      .select('*');
+      .select('*, is_active');
 
     if (evaluacion_id) {
       query = query.eq('id', evaluacion_id);

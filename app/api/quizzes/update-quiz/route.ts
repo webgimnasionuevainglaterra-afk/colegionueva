@@ -22,6 +22,7 @@ export async function PUT(request: NextRequest) {
       descripcion, 
       fecha_inicio,
       fecha_fin,
+      is_active, // Si no se especifica, se calculará automáticamente
       preguntas 
     } = body;
 
@@ -71,6 +72,7 @@ export async function PUT(request: NextRequest) {
         descripcion: descripcion || null,
         fecha_inicio,
         fecha_fin,
+        is_active: is_active !== undefined ? is_active : true,
       })
       .eq('id', quiz_id);
 

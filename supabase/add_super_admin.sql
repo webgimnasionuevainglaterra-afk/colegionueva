@@ -31,3 +31,6 @@ SET
   role = EXCLUDED.role,
   is_active = EXCLUDED.is_active;
 
+
+
+

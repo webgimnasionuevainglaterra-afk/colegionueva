@@ -91,3 +91,6 @@ Curso
 - Todos los usuarios autenticados pueden leer
 - Todas las tablas tienen `created_at` y `updated_at` con triggers automáticos
 
+
+
+

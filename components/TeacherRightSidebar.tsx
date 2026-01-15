@@ -64,10 +64,19 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
   const [expandedCursos, setExpandedCursos] = useState<Set<string>>(new Set());
   const [expandedMaterias, setExpandedMaterias] = useState<Set<string>>(new Set());
   const [expandedPeriodos, setExpandedPeriodos] = useState<Set<string>>(new Set());
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchQuizzesEvaluaciones();
   }, []);
+
+  // Función para mostrar notificaciones
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
 
   const fetchQuizzesEvaluaciones = async () => {
     try {
@@ -223,8 +232,20 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
   if (loading) {
     return (
       <div className={`teacher-right-sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h3>Quizzes y Evaluaciones</h3>
+        <div className="sidebar-header" style={{
+          padding: '1.5rem',
+          borderBottom: '1px solid #e5e7eb',
+          background: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            color: '#1f2937',
+            margin: 0,
+          }}>Quizzes y Evaluaciones</h3>
           {onClose && (
             <button onClick={onClose} className="teacher-sidebar-close-btn">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
@@ -233,8 +254,12 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
             </button>
           )}
         </div>
-        <div className="sidebar-content">
-          <p>Cargando...</p>
+        <div className="sidebar-content" style={{
+          padding: '1.5rem',
+          flex: 1,
+          overflowY: 'auto',
+        }}>
+          <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>Cargando...</p>
         </div>
       </div>
     );
@@ -243,8 +268,20 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
   if (error) {
     return (
       <div className={`teacher-right-sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h3>Quizzes y Evaluaciones</h3>
+        <div className="sidebar-header" style={{
+          padding: '1.5rem',
+          borderBottom: '1px solid #e5e7eb',
+          background: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            color: '#1f2937',
+            margin: 0,
+          }}>Quizzes y Evaluaciones</h3>
           {onClose && (
             <button onClick={onClose} className="teacher-sidebar-close-btn">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
@@ -253,8 +290,12 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
             </button>
           )}
         </div>
-        <div className="sidebar-content">
-          <p style={{ color: '#ef4444' }}>{error}</p>
+        <div className="sidebar-content" style={{
+          padding: '1.5rem',
+          flex: 1,
+          overflowY: 'auto',
+        }}>
+          <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: 0 }}>{error}</p>
           <button onClick={fetchQuizzesEvaluaciones} style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             Reintentar
           </button>
@@ -602,72 +643,152 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
                                               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.25rem' }}>
                                                 Quizzes:
                                               </div>
-                                              {periodo.quizzes.map((quiz: any) => (
-                                                <div
-                                                  key={quiz.id}
-                                                  style={{
-                                                    padding: '0.75rem',
-                                                    marginBottom: '0.5rem',
-                                                    background: 'white',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #e5e7eb',
-                                                    fontSize: '0.875rem',
-                                                    color: '#1f2937',
-                                                    transition: 'all 0.2s',
-                                                  }}
-                                                  onMouseEnter={(e) => {
-                                                    e.currentTarget.style.background = '#f9fafb';
-                                                    e.currentTarget.style.borderColor = '#d1d5db';
-                                                  }}
-                                                  onMouseLeave={(e) => {
-                                                    e.currentTarget.style.background = 'white';
-                                                    e.currentTarget.style.borderColor = '#e5e7eb';
-                                                  }}
-                                                >
-                                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                                                    <div style={{ flex: 1 }}>
-                                                      <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{quiz.nombre}</div>
-                                                      {quiz.descripcion && (
-                                                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                                                          {quiz.descripcion.length > 60 ? `${quiz.descripcion.substring(0, 60)}...` : quiz.descripcion}
-                                                        </div>
-                                                      )}
+                                              {periodo.quizzes.map((quiz: any) => {
+                                                return (
+                                                  <div
+                                                    key={quiz.id}
+                                                    style={{
+                                                      padding: '0.75rem',
+                                                      marginBottom: '0.5rem',
+                                                      background: 'white',
+                                                      borderRadius: '6px',
+                                                      border: '1px solid #e5e7eb',
+                                                      fontSize: '0.875rem',
+                                                      color: '#1f2937',
+                                                      transition: 'all 0.2s',
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                      e.currentTarget.style.background = '#f9fafb';
+                                                      e.currentTarget.style.borderColor = '#d1d5db';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                      e.currentTarget.style.background = 'white';
+                                                      e.currentTarget.style.borderColor = '#e5e7eb';
+                                                    }}
+                                                  >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                                      <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{quiz.nombre}</div>
+                                                        {quiz.descripcion && (
+                                                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                                                            {quiz.descripcion.length > 60 ? `${quiz.descripcion.substring(0, 60)}...` : quiz.descripcion}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                        {/* Toggle de activar/desactivar */}
+                                                        <button
+                                                          onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            const newState = !(quiz.is_active ?? true);
+                                                            try {
+                                                              const { data: { session } } = await supabase.auth.getSession();
+                                                              if (!session) {
+                                                                showNotification('No hay sesión activa', 'error');
+                                                                return;
+                                                              }
+
+                                                              const response = await fetch('/api/quizzes/toggle-active', {
+                                                                method: 'PUT',
+                                                                headers: {
+                                                                  'Content-Type': 'application/json',
+                                                                  'Authorization': `Bearer ${session.access_token}`,
+                                                                },
+                                                                body: JSON.stringify({
+                                                                  quiz_id: quiz.id,
+                                                                  is_active: newState,
+                                                                }),
+                                                              });
+
+                                                              const result = await response.json();
+                                                              if (!response.ok) {
+                                                                throw new Error(result.error || 'Error al actualizar el estado');
+                                                              }
+
+                                                              // Actualizar el estado local
+                                                              fetchQuizzesEvaluaciones();
+                                                              showNotification(
+                                                                newState ? 'Quiz activado exitosamente' : 'Quiz desactivado exitosamente',
+                                                                'success'
+                                                              );
+                                                            } catch (error: any) {
+                                                              console.error('Error al cambiar estado:', error);
+                                                              showNotification('Error al cambiar el estado: ' + (error.message || 'Error desconocido'), 'error');
+                                                            }
+                                                          }}
+                                                          style={{
+                                                            padding: '0.375rem',
+                                                            background: (quiz.is_active ?? true) ? '#10b981' : '#6b7280',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            transition: 'all 0.2s',
+                                                            flexShrink: 0,
+                                                            width: '28px',
+                                                            height: '28px',
+                                                          }}
+                                                          title={(quiz.is_active ?? true) ? 'Desactivar quiz' : 'Activar quiz'}
+                                                          onMouseEnter={(e) => {
+                                                            e.currentTarget.style.transform = 'scale(1.1)';
+                                                            e.currentTarget.style.opacity = '0.9';
+                                                          }}
+                                                          onMouseLeave={(e) => {
+                                                            e.currentTarget.style.transform = 'scale(1)';
+                                                            e.currentTarget.style.opacity = '1';
+                                                          }}
+                                                        >
+                                                          {(quiz.is_active ?? true) ? (
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                          ) : (
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                          )}
+                                                        </button>
+                                                        {/* Botón de descargar PDF */}
+                                                        <button
+                                                          onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            await downloadQuizPDF(quiz.id, quiz.nombre);
+                                                          }}
+                                                          style={{
+                                                            padding: '0.5rem',
+                                                            background: '#ef4444',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '6px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            transition: 'all 0.2s',
+                                                            flexShrink: 0,
+                                                          }}
+                                                          onMouseEnter={(e) => {
+                                                            e.currentTarget.style.background = '#dc2626';
+                                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                                          }}
+                                                          onMouseLeave={(e) => {
+                                                            e.currentTarget.style.background = '#ef4444';
+                                                            e.currentTarget.style.transform = 'scale(1)';
+                                                          }}
+                                                          title="Descargar PDF"
+                                                        >
+                                                          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                          </svg>
+                                                        </button>
+                                                      </div>
                                                     </div>
-                                                    <button
-                                                      onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        await downloadQuizPDF(quiz.id, quiz.nombre);
-                                                      }}
-                                                      style={{
-                                                        padding: '0.5rem',
-                                                        background: '#ef4444',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: '6px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        transition: 'all 0.2s',
-                                                        flexShrink: 0,
-                                                      }}
-                                                      onMouseEnter={(e) => {
-                                                        e.currentTarget.style.background = '#dc2626';
-                                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                                      }}
-                                                      onMouseLeave={(e) => {
-                                                        e.currentTarget.style.background = '#ef4444';
-                                                        e.currentTarget.style.transform = 'scale(1)';
-                                                      }}
-                                                      title="Descargar PDF"
-                                                    >
-                                                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                      </svg>
-                                                    </button>
                                                   </div>
-                                                </div>
-                                              ))}
+                                                );
+                                              })}
                                             </div>
                                           )}
 
@@ -677,28 +798,29 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
                                               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.25rem' }}>
                                                 Evaluaciones:
                                               </div>
-                                              {periodo.evaluaciones.map((evaluacion: any) => (
-                                                <div
-                                                  key={evaluacion.id}
-                                                  style={{
-                                                    padding: '0.75rem',
-                                                    marginBottom: '0.5rem',
-                                                    background: 'white',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #e5e7eb',
-                                                    fontSize: '0.875rem',
-                                                    color: '#1f2937',
-                                                    transition: 'all 0.2s',
-                                                  }}
-                                                  onMouseEnter={(e) => {
-                                                    e.currentTarget.style.background = '#f9fafb';
-                                                    e.currentTarget.style.borderColor = '#d1d5db';
-                                                  }}
-                                                  onMouseLeave={(e) => {
-                                                    e.currentTarget.style.background = 'white';
-                                                    e.currentTarget.style.borderColor = '#e5e7eb';
-                                                  }}
-                                                >
+                                              {periodo.evaluaciones.map((evaluacion: any) => {
+                                                return (
+                                                  <div
+                                                    key={evaluacion.id}
+                                                    style={{
+                                                      padding: '0.75rem',
+                                                      marginBottom: '0.5rem',
+                                                      background: 'white',
+                                                      borderRadius: '6px',
+                                                      border: '1px solid #e5e7eb',
+                                                      fontSize: '0.875rem',
+                                                      color: '#1f2937',
+                                                      transition: 'all 0.2s',
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                      e.currentTarget.style.background = '#f9fafb';
+                                                      e.currentTarget.style.borderColor = '#d1d5db';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                      e.currentTarget.style.background = 'white';
+                                                      e.currentTarget.style.borderColor = '#e5e7eb';
+                                                    }}
+                                                  >
                                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                                                     <div style={{ flex: 1 }}>
                                                       <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{evaluacion.nombre}</div>
@@ -711,41 +833,120 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
                                                         </div>
                                                       )}
                                                     </div>
-                                                    <button
-                                                      onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        await downloadEvaluacionPDF(evaluacion.id, evaluacion.nombre);
-                                                      }}
-                                                      style={{
-                                                        padding: '0.5rem',
-                                                        background: '#ef4444',
-                                                        color: 'white',
-                                                        border: 'none',
-                                                        borderRadius: '6px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        transition: 'all 0.2s',
-                                                        flexShrink: 0,
-                                                      }}
-                                                      onMouseEnter={(e) => {
-                                                        e.currentTarget.style.background = '#dc2626';
-                                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                                      }}
-                                                      onMouseLeave={(e) => {
-                                                        e.currentTarget.style.background = '#ef4444';
-                                                        e.currentTarget.style.transform = 'scale(1)';
-                                                      }}
-                                                      title="Descargar PDF"
-                                                    >
-                                                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                      </svg>
-                                                    </button>
+                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                      {/* Toggle de activar/desactivar */}
+                                                      <button
+                                                        onClick={async (e) => {
+                                                          e.stopPropagation();
+                                                          const newState = !(evaluacion.is_active ?? true);
+                                                          try {
+                                                            const { data: { session } } = await supabase.auth.getSession();
+                                                            if (!session) {
+                                                              showNotification('No hay sesión activa', 'error');
+                                                              return;
+                                                            }
+
+                                                            const response = await fetch('/api/evaluaciones/toggle-active', {
+                                                              method: 'PUT',
+                                                              headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Authorization': `Bearer ${session.access_token}`,
+                                                              },
+                                                              body: JSON.stringify({
+                                                                evaluacion_id: evaluacion.id,
+                                                                is_active: newState,
+                                                              }),
+                                                            });
+
+                                                            const result = await response.json();
+                                                            if (!response.ok) {
+                                                              throw new Error(result.error || 'Error al actualizar el estado');
+                                                            }
+
+                                                            // Actualizar el estado local
+                                                            fetchQuizzesEvaluaciones();
+                                                            showNotification(
+                                                              newState ? 'Evaluación activada exitosamente' : 'Evaluación desactivada exitosamente',
+                                                              'success'
+                                                            );
+                                                          } catch (error: any) {
+                                                            console.error('Error al cambiar estado:', error);
+                                                            showNotification('Error al cambiar el estado: ' + (error.message || 'Error desconocido'), 'error');
+                                                          }
+                                                        }}
+                                                        style={{
+                                                          padding: '0.375rem',
+                                                          background: (evaluacion.is_active ?? true) ? '#10b981' : '#6b7280',
+                                                          color: 'white',
+                                                          border: 'none',
+                                                          borderRadius: '6px',
+                                                          cursor: 'pointer',
+                                                          display: 'flex',
+                                                          alignItems: 'center',
+                                                          justifyContent: 'center',
+                                                          transition: 'all 0.2s',
+                                                          flexShrink: 0,
+                                                          width: '28px',
+                                                          height: '28px',
+                                                        }}
+                                                        title={(evaluacion.is_active ?? true) ? 'Desactivar evaluación' : 'Activar evaluación'}
+                                                        onMouseEnter={(e) => {
+                                                          e.currentTarget.style.transform = 'scale(1.1)';
+                                                          e.currentTarget.style.opacity = '0.9';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                          e.currentTarget.style.transform = 'scale(1)';
+                                                          e.currentTarget.style.opacity = '1';
+                                                        }}
+                                                      >
+                                                        {(evaluacion.is_active ?? true) ? (
+                                                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                          </svg>
+                                                        ) : (
+                                                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                          </svg>
+                                                        )}
+                                                      </button>
+                                                      {/* Botón de descargar PDF */}
+                                                      <button
+                                                        onClick={async (e) => {
+                                                          e.stopPropagation();
+                                                          await downloadEvaluacionPDF(evaluacion.id, evaluacion.nombre);
+                                                        }}
+                                                        style={{
+                                                          padding: '0.5rem',
+                                                          background: '#ef4444',
+                                                          color: 'white',
+                                                          border: 'none',
+                                                          borderRadius: '6px',
+                                                          cursor: 'pointer',
+                                                          display: 'flex',
+                                                          alignItems: 'center',
+                                                          justifyContent: 'center',
+                                                          transition: 'all 0.2s',
+                                                          flexShrink: 0,
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                          e.currentTarget.style.background = '#dc2626';
+                                                          e.currentTarget.style.transform = 'scale(1.05)';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                          e.currentTarget.style.background = '#ef4444';
+                                                          e.currentTarget.style.transform = 'scale(1)';
+                                                        }}
+                                                        title="Descargar PDF"
+                                                      >
+                                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                      </button>
+                                                    </div>
                                                   </div>
                                                 </div>
-                                              ))}
+                                                );
+                                              })}
                                             </div>
                                           )}
                                           
@@ -773,6 +974,58 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
           )}
         </div>
       </div>
+      
+      {/* Notificación Toast */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '1rem 1.5rem',
+            background: notification.type === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            minWidth: '300px',
+            maxWidth: '400px',
+            animation: 'slideIn 0.3s ease-out',
+          }}
+          className="notification-toast"
+        >
+          {notification.type === 'success' ? (
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span style={{ flex: 1, fontWeight: 500 }}>{notification.message}</span>
+          <button
+            onClick={() => setNotification(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </>
   );
 }

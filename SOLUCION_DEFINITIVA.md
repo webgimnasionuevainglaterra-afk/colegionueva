@@ -83,3 +83,6 @@ Después de ejecutar el comando, deberías ver:
 
 El código está correcto. El problema es que **debe ejecutarse fuera del entorno de Cursor** para tener los permisos necesarios del sistema operativo.
 
+
+
+

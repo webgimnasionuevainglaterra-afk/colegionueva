@@ -10,3 +10,6 @@ ALTER TABLE materias ADD COLUMN IF NOT EXISTS horas_totales INTEGER DEFAULT 0;
 ALTER TABLE materias DROP CONSTRAINT IF EXISTS materias_curso_id_nombre_key;
 ALTER TABLE materias ADD CONSTRAINT materias_curso_id_nombre_key UNIQUE(curso_id, nombre);
 
+
+
+

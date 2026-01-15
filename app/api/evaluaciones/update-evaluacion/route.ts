@@ -22,6 +22,7 @@ export async function PUT(request: NextRequest) {
       descripcion, 
       fecha_inicio,
       fecha_fin,
+      is_active, // Si no se especifica, se calculará automáticamente
       preguntas 
     } = body;
 
@@ -63,6 +64,20 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Calcular is_active automáticamente si no se especifica manualmente
+    // Se activa si la fecha actual está entre fecha_inicio y fecha_fin
+    let isActiveValue: boolean;
+    if (is_active !== undefined) {
+      // Si el profesor especificó manualmente, usar ese valor
+      isActiveValue = is_active;
+    } else {
+      // Calcular automáticamente basado en las fechas
+      const ahora = new Date();
+      const inicio = new Date(fecha_inicio);
+      const fin = new Date(fecha_fin);
+      isActiveValue = ahora >= inicio && ahora <= fin;
+    }
+
     // Actualizar la evaluación
     const { error: evaluacionError } = await supabaseAdmin
       .from('evaluaciones_periodo')
@@ -71,6 +86,7 @@ export async function PUT(request: NextRequest) {
         descripcion: descripcion || null,
         fecha_inicio,
         fecha_fin,
+        is_active: isActiveValue,
       })
       .eq('id', evaluacion_id);
 

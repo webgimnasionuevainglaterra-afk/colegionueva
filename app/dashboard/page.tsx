@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,11 +17,24 @@ import StudentsManager from '@/components/StudentsManager';
 import TeacherProgramsView from '@/components/TeacherProgramsView';
 import TeacherReportsView from '@/components/TeacherReportsView';
 import TeacherDashboard from '@/components/TeacherDashboard';
+import TeacherCalendar from '@/components/TeacherCalendar';
+import EvaluationsResultsView from '@/components/EvaluationsResultsView';
 import TeacherSidebar from '@/components/TeacherSidebar';
 import TeacherRightSidebar from '@/components/TeacherRightSidebar';
+import StudentSidebar from '@/components/StudentSidebar';
+import StudentRightSidebar from '@/components/StudentRightSidebar';
+import StudentInstitutionalVideo from '@/components/StudentInstitutionalVideo';
+import StudentSubjectContent from '@/components/StudentSubjectContent';
 import StudentDetailView from '@/components/StudentDetailView';
+import TeacherDetailView from '@/components/TeacherDetailView';
+import InstitutionalVideoManager from '@/components/InstitutionalVideoManager';
+import AdminSidebar from '@/components/AdminSidebar';
+import AdminRightSidebar from '@/components/AdminRightSidebar';
+import AdminDashboard from '@/components/AdminDashboard';
 import '../css/dashboard.css';
 import '../css/teacher-sidebar.css';
+import '../css/admin-sidebar.css';
+import '../css/admin-dashboard.css';
 
 interface AdministratorInfo {
   nombre: string;
@@ -52,15 +65,67 @@ export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUsersMenuOpen, setIsUsersMenuOpen] = useState(false);
   const [isProgramsMenuOpen, setIsProgramsMenuOpen] = useState(false);
-  const [isAdmissionsMenuOpen, setIsAdmissionsMenuOpen] = useState(false);
-  const [isReportsMenuOpen, setIsReportsMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [refreshKey, setRefreshKey] = useState(0);
   const [coursesRefreshKey, setCoursesRefreshKey] = useState(0);
   const [teachersRefreshKey, setTeachersRefreshKey] = useState(0);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [isStudentSidebarOpen, setIsStudentSidebarOpen] = useState(false);
+  const [isStudentRightSidebarOpen, setIsStudentRightSidebarOpen] = useState(false);
+  const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState(false);
+  const [isAdminRightSidebarOpen, setIsAdminRightSidebarOpen] = useState(false);
+  const [selectedStudentSubjectId, setSelectedStudentSubjectId] = useState<string | null>(null);
+  const [selectedStudentSubjectName, setSelectedStudentSubjectName] = useState<string | null>(null);
+  const [selectedTema, setSelectedTema] = useState<{ tema: any; periodoNombre: string } | null>(null);
+
+  // Debug: Verificar cuando cambia selectedTema
+  useEffect(() => {
+    console.log('🔍 Dashboard - selectedTema cambió:', selectedTema);
+    if (selectedTema) {
+      console.log('🔍 Dashboard - Tema seleccionado:', selectedTema.tema.nombre);
+      console.log('🔍 Dashboard - Periodo:', selectedTema.periodoNombre);
+    }
+  }, [selectedTema]);
+
+  // Callback para manejar la selección de tema - usar useCallback para mantener la referencia estable
+  const handleTemaSelect = useCallback((tema: any, periodoNombre: string) => {
+    console.log('📋 ========== CALLBACK onTemaSelect LLAMADO ==========');
+    console.log('📋 Dashboard recibió tema:', tema);
+    console.log('📋 Tema ID:', tema?.id);
+    console.log('📋 Tema nombre:', tema?.nombre);
+    console.log('📋 Periodo:', periodoNombre);
+    console.log('📋 Tema tiene subtemas?', tema?.subtemas?.length || 0);
+    console.log('📋 Subtemas:', tema?.subtemas);
+    
+    // Validar que el tema existe y tiene la estructura correcta
+    if (!tema || !tema.id) {
+      console.error('❌ Error: El tema no tiene la estructura correcta:', tema);
+      return;
+    }
+    
+    // Crear una copia profunda del tema para asegurar que React detecte el cambio
+    const temaData = { 
+      tema: { 
+        ...tema,
+        subtemas: tema.subtemas ? tema.subtemas.map((st: any) => ({ ...st })) : []
+      }, 
+      periodoNombre 
+    };
+    
+    console.log('📋 Estableciendo selectedTema:', temaData);
+    
+    // Usar una función de actualización para asegurar que se actualice correctamente
+    setSelectedTema((prevState) => {
+      console.log('📋 setSelectedTema - Estado anterior:', prevState);
+      console.log('📋 setSelectedTema - Nuevo estado:', temaData);
+      return temaData;
+    });
+    
+    console.log('📋 setSelectedTema llamado, debería actualizar el estado');
+  }, []);
 
   // Detectar tamaño de pantalla y ajustar sidebars
   useEffect(() => {
@@ -78,6 +143,34 @@ export default function Dashboard() {
       checkScreenSize();
       window.addEventListener('resize', checkScreenSize);
       
+      return () => window.removeEventListener('resize', checkScreenSize);
+    } else if (userRole === 'super_admin') {
+      const checkScreenSize = () => {
+        if (window.innerWidth >= 768) {
+          setIsAdminSidebarOpen(true); // Abrir en desktop
+          setIsAdminRightSidebarOpen(true); // Abrir sidebar derecho en desktop
+        } else {
+          setIsAdminSidebarOpen(false); // Cerrar en móvil
+          setIsAdminRightSidebarOpen(false); // Cerrar sidebar derecho en móvil
+        }
+      };
+      
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+      
+      return () => window.removeEventListener('resize', checkScreenSize);
+    } else if (userRole === 'estudiante') {
+      const checkScreenSize = () => {
+        if (window.innerWidth >= 768) {
+          setIsStudentSidebarOpen(true);
+        } else {
+          setIsStudentSidebarOpen(false);
+        }
+      };
+
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+
       return () => window.removeEventListener('resize', checkScreenSize);
     }
   }, [userRole]);
@@ -156,16 +249,24 @@ export default function Dashboard() {
         if (token) {
           // Si es estudiante, usar la API de estudiantes
           if (userRole === 'estudiante') {
-            await fetch('/api/estudiantes/update-user-status', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                isOnline: isOnline,
-              }),
-            });
+            // DESHABILITADO TEMPORALMENTE - Esta llamada causa error 500 y no es crítica
+            // Se puede reactivar cuando se corrija el endpoint
+            // fetch('/api/estudiantes/update-user-status', {
+            //   method: 'POST',
+            //   headers: {
+            //     'Content-Type': 'application/json',
+            //     'Authorization': `Bearer ${token}`,
+            //   },
+            //   body: JSON.stringify({
+            //     isOnline: isOnline,
+            //   }),
+            // })
+            // .then(() => {
+            //   // Silenciar éxito
+            // })
+            // .catch(() => {
+            //   // Silenciar errores - esta actualización no es crítica para el funcionamiento
+            // });
           } else {
             // Para administradores y profesores, usar la API de admin
             await fetch('/api/admin/update-user-status', {
@@ -279,15 +380,9 @@ export default function Dashboard() {
       if (!target.closest('.programs-menu-dropdown')) {
         setIsProgramsMenuOpen(false);
       }
-      if (!target.closest('.admissions-menu-dropdown')) {
-        setIsAdmissionsMenuOpen(false);
-      }
-      if (!target.closest('.reports-menu-dropdown')) {
-        setIsReportsMenuOpen(false);
-      }
     };
 
-    if (isSettingsOpen || isUsersMenuOpen || isProgramsMenuOpen || isAdmissionsMenuOpen || isReportsMenuOpen) {
+    if (isSettingsOpen || isUsersMenuOpen || isProgramsMenuOpen) {
       // Pequeño delay para evitar que se cierre inmediatamente al abrir
       setTimeout(() => {
         document.addEventListener('click', handleClickOutside);
@@ -297,7 +392,7 @@ export default function Dashboard() {
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [isSettingsOpen, isUsersMenuOpen, isProgramsMenuOpen, isAdmissionsMenuOpen, isReportsMenuOpen]);
+  }, [isSettingsOpen, isUsersMenuOpen, isProgramsMenuOpen]);
 
   if (loading) {
     return (
@@ -330,28 +425,23 @@ export default function Dashboard() {
     setActiveMenu(menuId);
     setIsUsersMenuOpen(false);
     setIsProgramsMenuOpen(false);
-    setIsAdmissionsMenuOpen(false);
-    setIsReportsMenuOpen(false);
     setIsMobileMenuOpen(false);
   };
 
-  const programsMenuItems = [
-    { id: 'grados', label: 'Gestionar Cursos' },
-  ];
+  const programsMenuItems =
+    userRole === 'profesor'
+      ? [
+          { id: 'grados', label: 'Gestionar Cursos' },
+          { id: 'calendario', label: 'Calendario' },
+          { id: 'evaluaciones', label: 'Evaluaciones' },
+        ]
+      : userRole === 'estudiante'
+      ? []
+      : [
+          { id: 'grados', label: 'Gestionar Cursos' },
+          { id: 'video-institucional', label: 'Video Institucional' },
+        ];
 
-  const admissionsMenuItems = [
-    { id: 'gestionar-estudiantes', label: 'Gestionar Estudiantes' },
-  ];
-
-  // Reportes diferentes según el rol
-  const reportsMenuItems = userRole === 'profesor' 
-    ? [
-        { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
-      ]
-    : [
-        { id: 'reportes-profesores', label: 'Reportes profesores' },
-        { id: 'reportes-estudiantes', label: 'Reportes estudiantes' },
-      ];
 
   return (
     <div className="dashboard-container">
@@ -374,10 +464,10 @@ export default function Dashboard() {
             </button>
             <div className="header-logo">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logovirtual.svg"
                 alt="Logo"
-                width={80}
-                height={80}
+                width={265}
+                height={98}
                 className="logo-image"
                 unoptimized
               />
@@ -395,8 +485,8 @@ export default function Dashboard() {
               >
                 Dashboard
               </button>
-              {/* Solo mostrar Gestionar Usuarios si no es profesor */}
-              {userRole !== 'profesor' && (
+              {/* Solo mostrar Gestionar Usuarios para administradores */}
+              {userRole !== 'profesor' && userRole !== 'estudiante' && (
                 <div className="users-menu-dropdown">
                   <button
                     className={`menu-item ${isUsersMenuOpen ? 'active' : ''}`}
@@ -431,74 +521,36 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-              {/* Programas Educativos - visible para todos */}
-              <div className="programs-menu-dropdown">
-                <button
-                  className={`menu-item ${isProgramsMenuOpen ? 'active' : ''}`}
-                  onClick={() => setIsProgramsMenuOpen(!isProgramsMenuOpen)}
-                >
-                  Programas Educativos
-                  <svg
-                    className="dropdown-arrow"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    style={{
-                      transform: isProgramsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                    }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {isProgramsMenuOpen && (
-                  <div className="users-menu">
-                    {programsMenuItems.map((item) => (
-                      <button
-                        key={item.id}
-                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
-                        onClick={() => {
-                          setActiveMenu(item.id);
-                          setIsProgramsMenuOpen(false);
-                          setIsMobileMenuOpen(false);
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Solo mostrar Admisiones si no es profesor */}
-              {userRole !== 'profesor' && (
-                <div className="admissions-menu-dropdown">
+              {/* Programas Educativos - oculto para estudiantes */}
+              {userRole !== 'estudiante' && (
+                <div className="programs-menu-dropdown">
                   <button
-                    className={`menu-item ${isAdmissionsMenuOpen ? 'active' : ''}`}
-                    onClick={() => setIsAdmissionsMenuOpen(!isAdmissionsMenuOpen)}
+                    className={`menu-item ${isProgramsMenuOpen ? 'active' : ''}`}
+                    onClick={() => setIsProgramsMenuOpen(!isProgramsMenuOpen)}
                   >
-                    Admisiones
+                    Programas Educativos
                     <svg
                       className="dropdown-arrow"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                       style={{
-                        transform: isAdmissionsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transform: isProgramsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.2s',
                       }}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  {isAdmissionsMenuOpen && (
+                  {isProgramsMenuOpen && (
                     <div className="users-menu">
-                      {admissionsMenuItems.map((item) => (
+                      {programsMenuItems.map((item) => (
                         <button
                           key={item.id}
                           className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
                           onClick={() => {
                             setActiveMenu(item.id);
-                            setIsAdmissionsMenuOpen(false);
+                            setIsProgramsMenuOpen(false);
                             setIsMobileMenuOpen(false);
                           }}
                         >
@@ -509,44 +561,6 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-              {/* Reportes - visible para todos, pero con opciones diferentes */}
-              <div className="reports-menu-dropdown">
-                <button
-                  className={`menu-item ${isReportsMenuOpen ? 'active' : ''}`}
-                  onClick={() => setIsReportsMenuOpen(!isReportsMenuOpen)}
-                >
-                  Reportes
-                  <svg
-                    className="dropdown-arrow"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    style={{
-                      transform: isReportsMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s',
-                    }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {isReportsMenuOpen && (
-                  <div className="users-menu">
-                    {reportsMenuItems.map((item) => (
-                      <button
-                        key={item.id}
-                        className={`users-menu-item ${activeMenu === item.id ? 'active' : ''}`}
-                        onClick={() => {
-                          setActiveMenu(item.id);
-                          setIsReportsMenuOpen(false);
-                          setIsMobileMenuOpen(false);
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </nav>
             {isMobileMenuOpen && (
               <div className="mobile-menu-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
@@ -649,7 +663,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="dashboard-main" style={{
         display: 'flex',
-        flexDirection: userRole === 'profesor' ? 'row' : 'column',
+        flexDirection: (userRole === 'profesor' || userRole === 'super_admin' || userRole === 'estudiante') ? 'row' : 'column',
         height: 'calc(100vh - 80px)',
       }}>
         {/* Sidebar para profesores */}
@@ -677,11 +691,82 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Sidebar izquierdo para super administrador */}
+        {userRole === 'super_admin' && activeMenu === 'dashboard' && (
+          <>
+            <AdminSidebar
+              onStudentClick={(studentId) => {
+                setSelectedStudentId(studentId);
+                setIsAdminSidebarOpen(false); // Cerrar sidebar en móvil
+              }}
+              isOpen={isAdminSidebarOpen}
+              onClose={() => setIsAdminSidebarOpen(false)}
+            />
+            {/* Botón para abrir sidebar izquierdo en móvil */}
+            {!selectedStudentId && (
+              <button
+                onClick={() => setIsAdminSidebarOpen(true)}
+                className="admin-floating-btn-left"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Sidebar izquierdo para estudiantes */}
+        {userRole === 'estudiante' && (
+          <>
+            <StudentSidebar
+              isOpen={isStudentSidebarOpen}
+              onClose={() => setIsStudentSidebarOpen(false)}
+              selectedSubjectId={selectedStudentSubjectId}
+              onSubjectSelect={(id, name) => {
+                console.log('📚 Materia seleccionada:', id, name);
+                setSelectedStudentSubjectId(id);
+                setSelectedStudentSubjectName(name);
+                setSelectedTema(null); // Limpiar tema cuando se cambia de materia
+                setIsStudentRightSidebarOpen(true);
+              }}
+            />
+            {!isStudentSidebarOpen && (
+              <button
+                onClick={() => setIsStudentSidebarOpen(true)}
+                className="teacher-floating-btn"
+              >
+                <svg
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  style={{ width: '24px', height: '24px' }}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
+
         {/* Content Area */}
-        <main className={`dashboard-content ${userRole === 'profesor' ? (isRightSidebarOpen ? 'dashboard-content-with-both-sidebars' : 'dashboard-content-with-sidebar') : ''}`} style={{
+        <main className={`dashboard-content ${
+          userRole === 'profesor' 
+            ? (isRightSidebarOpen ? 'dashboard-content-with-both-sidebars' : 'dashboard-content-with-sidebar')
+            : userRole === 'super_admin' && activeMenu === 'dashboard'
+            ? (isAdminRightSidebarOpen ? 'dashboard-content-with-both-sidebars' : 'dashboard-content-with-sidebar')
+            : userRole === 'estudiante'
+            ? (isStudentRightSidebarOpen ? 'dashboard-content-with-both-sidebars' : 'dashboard-content-with-sidebar')
+            : ''
+        }`} style={{
           flex: 1,
           overflowY: 'auto',
-          padding: userRole === 'profesor' && !selectedStudentId ? '2rem' : userRole === 'profesor' ? '0' : undefined,
+          padding: (userRole === 'profesor' && !selectedStudentId) || (userRole === 'super_admin' && activeMenu === 'dashboard') ? '2rem' : userRole === 'profesor' ? '0' : undefined,
         }}>
           {/* Vista de detalle del estudiante para profesores */}
           {userRole === 'profesor' && selectedStudentId ? (
@@ -741,6 +826,8 @@ export default function Dashboard() {
                 />
               )}
             </div>
+          ) : activeMenu === 'video-institucional' && userRole === 'super_admin' ? (
+            <InstitutionalVideoManager />
           ) : activeMenu === 'profesores' ? (
             <div className="administrators-section">
               <div className="administrators-actions">
@@ -770,8 +857,59 @@ export default function Dashboard() {
             <StudentsManager />
           ) : activeMenu === 'reportes-estudiantes' && userRole === 'profesor' ? (
             <TeacherReportsView />
+          ) : activeMenu === 'calendario' && userRole === 'profesor' ? (
+            <TeacherCalendar />
+          ) : activeMenu === 'evaluaciones' && userRole === 'profesor' ? (
+            <EvaluationsResultsView />
           ) : activeMenu === 'dashboard' && userRole === 'profesor' ? (
             <TeacherDashboard />
+          ) : activeMenu === 'dashboard' && userRole === 'super_admin' && selectedStudentId ? (
+            <StudentDetailView
+              studentId={selectedStudentId}
+              onClose={() => setSelectedStudentId(null)}
+            />
+          ) : activeMenu === 'dashboard' && userRole === 'super_admin' && selectedTeacherId ? (
+            <TeacherDetailView
+              teacherId={selectedTeacherId}
+              onClose={() => setSelectedTeacherId(null)}
+            />
+          ) : activeMenu === 'dashboard' && userRole === 'super_admin' ? (
+            <AdminDashboard />
+          ) : activeMenu === 'dashboard' && userRole === 'estudiante' ? (
+            (() => {
+              // Verificar si hay un tema seleccionado
+              const tieneTema = selectedTema && selectedTema.tema && selectedTema.tema.id;
+              
+              console.log('🔍 Dashboard - Verificación de tema:', {
+                selectedTema,
+                tieneTema,
+                temaId: selectedTema?.tema?.id,
+                temaNombre: selectedTema?.tema?.nombre,
+                esNull: selectedTema === null,
+                esUndefined: selectedTema === undefined
+              });
+              
+              if (tieneTema) {
+                console.log('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema);
+                return (
+                  <StudentSubjectContent
+                    key={`tema-${selectedTema.tema.id}`}
+                    subjectId={selectedStudentSubjectId}
+                    subjectName={selectedStudentSubjectName}
+                    selectedTemaFromSidebar={selectedTema}
+                    onTemaClear={() => {
+                      console.log('🔄 Limpiando tema desde dashboard');
+                      setSelectedTema(null);
+                    }}
+                  />
+                );
+              } else {
+                console.log('📺 Dashboard mostrando StudentInstitutionalVideo (no hay tema seleccionado)');
+                console.log('📺 selectedTema valor:', selectedTema);
+                console.log('📺 selectedTema.tema valor:', selectedTema?.tema);
+                return <StudentInstitutionalVideo />;
+              }
+            })()
           ) : activeMenu === 'dashboard' ? (
             <div className="dashboard-welcome">
               <h1 className="welcome-title">
@@ -800,10 +938,46 @@ export default function Dashboard() {
             onClose={() => setIsRightSidebarOpen(false)}
           />
         )}
+
+        {/* Right Sidebar para super administrador - Profesores */}
+        {userRole === 'super_admin' && activeMenu === 'dashboard' && (
+          <>
+            <AdminRightSidebar
+              onTeacherClick={(teacherId) => {
+                setSelectedTeacherId(teacherId);
+                setIsAdminRightSidebarOpen(false); // Cerrar sidebar en móvil
+              }}
+              isOpen={isAdminRightSidebarOpen}
+              onClose={() => setIsAdminRightSidebarOpen(false)}
+            />
+            {/* Botón para abrir sidebar derecho en móvil */}
+            {!selectedTeacherId && (
+              <button
+                onClick={() => setIsAdminRightSidebarOpen(true)}
+                className="admin-floating-btn-right"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Right Sidebar para estudiantes */}
+        {userRole === 'estudiante' && (
+          <StudentRightSidebar
+            isOpen={isStudentRightSidebarOpen}
+            onClose={() => setIsStudentRightSidebarOpen(false)}
+            subjectId={selectedStudentSubjectId}
+            subjectName={selectedStudentSubjectName}
+            onTemaSelect={handleTemaSelect}
+          />
+        )}
       </div>
 
-      {/* Footer fijo fuera del contenedor con overflow - solo para profesores */}
-      {userRole === 'profesor' && (
+      {/* Footer fijo fuera del contenedor con overflow - para profesores y super administradores */}
+      {(userRole === 'profesor' || userRole === 'super_admin') && (
         <footer 
           className="dashboard-footer" 
           style={{

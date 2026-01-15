@@ -67,3 +67,6 @@ Después de crear el bucket:
 
 Si no creas el bucket, aún podrás crear administradores, pero **sin foto**. El sistema continuará funcionando normalmente, solo que no se subirán las imágenes.
 
+
+
+

@@ -8,3 +8,6 @@ ALTER TABLE cursos DROP CONSTRAINT IF EXISTS cursos_nivel_check;
 ALTER TABLE cursos ADD CONSTRAINT cursos_nivel_check 
   CHECK (nivel IN ('Primaria', 'Bachillerato', 'Técnico', 'Profesional'));
 
+
+
+

@@ -50,14 +50,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar que el usuario es un profesor
-    const { data: profesor, error: profesorError } = await supabaseAdmin
-      .from('profesores')
-      .select('id')
-      .eq('id', user.id)
-      .single();
+    // Verificar que el usuario es un profesor o super administrador
+    const [profesorData, adminData] = await Promise.all([
+      supabaseAdmin
+        .from('profesores')
+        .select('id')
+        .eq('id', user.id)
+        .single(),
+      supabaseAdmin
+        .from('administrators')
+        .select('role')
+        .eq('id', user.id)
+        .eq('role', 'super_admin')
+        .single(),
+    ]);
 
-    if (profesorError || !profesor) {
+    const isProfesor = !profesorData.error && profesorData.data;
+    const isSuperAdmin = !adminData.error && adminData.data;
+
+    if (!isProfesor && !isSuperAdmin) {
       return NextResponse.json(
         { error: 'No eres un profesor autorizado' },
         { status: 403 }
@@ -75,41 +86,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar que el estudiante pertenece a un curso del profesor
-    const { data: cursosProfesor, error: cursosError } = await supabaseAdmin
-      .from('profesores_cursos')
-      .select('curso_id')
-      .eq('profesor_id', user.id);
+    // Si es profesor, verificar que el estudiante pertenece a sus cursos
+    // Si es super administrador, puede ver cualquier estudiante
+    if (isProfesor && !isSuperAdmin) {
+      const { data: cursosProfesor, error: cursosError } = await supabaseAdmin
+        .from('profesores_cursos')
+        .select('curso_id')
+        .eq('profesor_id', user.id);
 
-    if (cursosError) {
-      return NextResponse.json(
-        { error: 'Error al verificar cursos del profesor' },
-        { status: 500 }
-      );
-    }
+      if (cursosError) {
+        return NextResponse.json(
+          { error: 'Error al verificar cursos del profesor' },
+          { status: 500 }
+        );
+      }
 
-    const cursoIds = cursosProfesor?.map((cp: any) => cp.curso_id) || [];
+      const cursoIds = cursosProfesor?.map((cp: any) => cp.curso_id) || [];
 
-    if (cursoIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No tienes cursos asignados' },
-        { status: 403 }
-      );
-    }
+      if (cursoIds.length === 0) {
+        return NextResponse.json(
+          { error: 'No tienes cursos asignados' },
+          { status: 403 }
+        );
+      }
 
-    // Verificar que el estudiante está en uno de los cursos del profesor
-    const { data: estudianteCurso, error: estudianteCursoError } = await supabaseAdmin
-      .from('estudiantes_cursos')
-      .select('curso_id')
-      .eq('estudiante_id', studentId)
-      .in('curso_id', cursoIds)
-      .limit(1);
+      // Verificar que el estudiante está en uno de los cursos del profesor
+      const { data: estudianteCurso, error: estudianteCursoError } = await supabaseAdmin
+        .from('estudiantes_cursos')
+        .select('curso_id')
+        .eq('estudiante_id', studentId)
+        .in('curso_id', cursoIds)
+        .limit(1);
 
-    if (estudianteCursoError || !estudianteCurso || estudianteCurso.length === 0) {
-      return NextResponse.json(
-        { error: 'El estudiante no pertenece a tus cursos asignados' },
-        { status: 403 }
-      );
+      if (estudianteCursoError || !estudianteCurso || estudianteCurso.length === 0) {
+        return NextResponse.json(
+          { error: 'El estudiante no pertenece a tus cursos asignados' },
+          { status: 403 }
+        );
+      }
     }
 
     // Obtener información del estudiante
