@@ -25,6 +25,14 @@ interface TrackingData {
   intentosQuiz: any[];
   respuestas: any[];
   intentosEvaluacion: any[];
+  notasMateriasPeriodos?: Array<{
+    materiaId: string;
+    periodoId: string;
+    promedioQuizzes: number;
+    notaEvaluacion: number;
+    notaFinal: number;
+    aprueba: boolean;
+  }>;
   estadisticas: {
     totalQuizes: number;
     quizesCompletados: number;
@@ -148,6 +156,7 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
   }
 
   const estudiante = trackingData.estudiante;
+  const notasMateriasPeriodos = trackingData.notasMateriasPeriodos || [];
 
   return (
     <div className="student-detail-container">
@@ -303,6 +312,94 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
           </div>
         </div>
       </div>
+
+      {/* Resumen de notas por materia y periodo */}
+      {notasMateriasPeriodos.length > 0 && (
+        <div
+          style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              marginBottom: '1rem',
+              color: '#111827',
+            }}
+          >
+            Rendimiento por materia y periodo
+          </h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                  <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Materia (ID)
+                  </th>
+                  <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Periodo (ID)
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Prom. Quizes
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Eval. Periodo
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Nota final
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {notasMateriasPeriodos.map((n) => (
+                  <tr key={`${n.materiaId}-${n.periodoId}`} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#111827' }}>
+                      {n.materiaId}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#111827' }}>
+                      {n.periodoId}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: '#4b5563' }}>
+                      {n.promedioQuizzes.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: '#4b5563' }}>
+                      {n.notaEvaluacion.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'center', fontWeight: 600, color: n.aprueba ? '#16a34a' : '#b91c1c' }}>
+                      {n.notaFinal.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: n.aprueba ? '#dcfce7' : '#fee2e2',
+                          color: n.aprueba ? '#166534' : '#b91c1c',
+                        }}
+                      >
+                        {n.aprueba ? 'Aprueba' : 'No aprueba'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Estadísticas Generales */}
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>

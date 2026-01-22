@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
       .eq('estudiante_id', studentId)
       .order('fecha_inicio', { ascending: false });
 
-    // Calcular estadísticas
+    // Calcular estadísticas generales
     const totalQuizes = intentosQuiz?.length || 0;
     const quizesCompletados = intentosQuiz?.filter((iq: any) => iq.estado === 'completado').length || 0;
     const promedioQuizes = intentosQuiz && intentosQuiz.length > 0
@@ -259,6 +259,84 @@ export async function GET(request: NextRequest) {
     }).length || 0;
     const porcentajeAciertos = totalRespuestas > 0 ? (respuestasCorrectas / totalRespuestas) * 100 : 0;
 
+    // Calcular notas finales por materia y periodo
+    interface ClaveMateriaPeriodo {
+      materiaId: string;
+      periodoId: string;
+    }
+
+    const key = (mId: string, pId: string) => `${mId}__${pId}`;
+
+    type AcumuladorNotas = {
+      sumaQuizzes: number;
+      countQuizzes: number;
+      notaEvaluacion: number | null;
+    };
+
+    const notasPorMateriaPeriodo: Record<string, AcumuladorNotas> = {};
+
+    // Agrupar quizzes por materia/periodo
+    (intentosQuiz || []).forEach((iq: any) => {
+      const materiaId = iq.quizzes?.subtemas?.temas?.periodos?.materias?.id;
+      const periodoId = iq.quizzes?.subtemas?.temas?.periodos?.id;
+
+      if (!materiaId || !periodoId) return;
+
+      const k = key(materiaId, periodoId);
+      if (!notasPorMateriaPeriodo[k]) {
+        notasPorMateriaPeriodo[k] = {
+          sumaQuizzes: 0,
+          countQuizzes: 0,
+          notaEvaluacion: null,
+        };
+      }
+
+      const cal = typeof iq.calificacion === 'number' ? iq.calificacion : 0;
+      notasPorMateriaPeriodo[k].sumaQuizzes += cal;
+      notasPorMateriaPeriodo[k].countQuizzes += 1;
+    });
+
+    // Agrupar evaluaciones por materia/periodo (una por materia/periodo)
+    (intentosEvaluacion || []).forEach((ie: any) => {
+      const materiaId = ie.evaluaciones_periodo?.periodos?.materias?.id;
+      const periodoId = ie.evaluaciones_periodo?.periodos?.id;
+
+      if (!materiaId || !periodoId) return;
+
+      const k = key(materiaId, periodoId);
+      if (!notasPorMateriaPeriodo[k]) {
+        notasPorMateriaPeriodo[k] = {
+          sumaQuizzes: 0,
+          countQuizzes: 0,
+          notaEvaluacion: null,
+        };
+      }
+
+      const cal = typeof ie.calificacion === 'number' ? ie.calificacion : 0;
+      notasPorMateriaPeriodo[k].notaEvaluacion = cal;
+    });
+
+    // Transformar en arreglo con nota final y estado
+    const resumenMateriasPeriodos = Object.entries(notasPorMateriaPeriodo).map(([k, v]) => {
+      const [materiaId, periodoId] = k.split('__');
+      const promedioQuizzes = v.countQuizzes > 0 ? v.sumaQuizzes / v.countQuizzes : 0;
+      const notaEvaluacion = v.notaEvaluacion ?? 0;
+
+      const notaFinal = (promedioQuizzes * 0.70) + (notaEvaluacion * 0.30);
+      const notaFinalRedondeada = Math.round(notaFinal * 100) / 100;
+
+      const aprueba = notaFinalRedondeada >= 3.7;
+
+      return {
+        materiaId,
+        periodoId,
+        promedioQuizzes: Math.round(promedioQuizzes * 100) / 100,
+        notaEvaluacion: Math.round(notaEvaluacion * 100) / 100,
+        notaFinal: notaFinalRedondeada,
+        aprueba,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -266,6 +344,7 @@ export async function GET(request: NextRequest) {
         intentosQuiz: intentosQuiz || [],
         respuestas: respuestas || [],
         intentosEvaluacion: intentosEvaluacion || [],
+        notasMateriasPeriodos: resumenMateriasPeriodos,
         estadisticas: {
           totalQuizes,
           quizesCompletados,

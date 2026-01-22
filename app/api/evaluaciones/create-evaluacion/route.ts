@@ -167,8 +167,19 @@ export async function POST(request: NextRequest) {
 
     if (evaluacionError) {
       console.error('Error al crear evaluación:', evaluacionError);
+
+      // Manejar violación de restricción única (solo una evaluación por periodo y materia)
+      if ((evaluacionError as any).code === '23505') {
+        return NextResponse.json(
+          { 
+            error: 'Ya existe una evaluación para este periodo y materia. Por favor edita la evaluación existente o elimina la actual antes de crear una nueva.' 
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
-        { error: evaluacionError.message || 'Error al crear la evaluación' },
+        { error: (evaluacionError as any).message || 'Error al crear la evaluación' },
         { status: 500 }
       );
     }

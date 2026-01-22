@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-client';
 
 interface StudentRightSidebarProps {
   isOpen?: boolean;
@@ -40,6 +41,17 @@ interface Periodo {
   temas?: Tema[];
 }
 
+interface Evaluacion {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  fecha_inicio: string;
+  fecha_fin: string;
+  periodo_id: string;
+  materia_id: string;
+  is_active?: boolean;
+}
+
 export default function StudentRightSidebar({
   isOpen = true,
   onClose,
@@ -54,6 +66,8 @@ export default function StudentRightSidebar({
   const [error, setError] = useState<string | null>(null);
   const [expandedPeriodoId, setExpandedPeriodoId] = useState<string | null>(null);
   const [selectedContenido, setSelectedContenido] = useState<Contenido | null>(null);
+  const [evaluacionesPorPeriodo, setEvaluacionesPorPeriodo] = useState<Record<string, Evaluacion[]>>({});
+  const [loadingEvaluaciones, setLoadingEvaluaciones] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,8 +82,19 @@ export default function StudentRightSidebar({
         setError(null);
         setSelectedContenido(null);
 
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('No hay sesión activa');
+        }
+
         const response = await fetch(
-          `/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`
+          `/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          }
         );
         const result = await response.json();
 
@@ -88,6 +113,59 @@ export default function StudentRightSidebar({
 
     fetchData();
   }, [subjectId]);
+
+  // Cargar evaluaciones del período cuando se cargan los períodos
+  useEffect(() => {
+    if (!subjectId || periodos.length === 0) {
+      setEvaluacionesPorPeriodo({});
+      return;
+    }
+
+    const fetchEvaluaciones = async () => {
+      setLoadingEvaluaciones(true);
+      const evaluaciones: Record<string, Evaluacion[]> = {};
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Obtener evaluaciones de todos los períodos
+        const promises = periodos.map(async (periodo) => {
+          try {
+            const response = await fetch(
+              `/api/evaluaciones/get-evaluacion?periodo_id=${periodo.id}&materia_id=${subjectId}`,
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+              }
+            );
+            const result = await response.json();
+            if (response.ok && result.data) {
+              // Filtrar solo evaluaciones activas
+              const evaluacionesArray = Array.isArray(result.data) ? result.data : [result.data];
+              evaluaciones[periodo.id] = evaluacionesArray.filter((e: Evaluacion) => e.is_active !== false);
+            } else {
+              evaluaciones[periodo.id] = [];
+            }
+          } catch (err) {
+            console.error(`Error al cargar evaluaciones del período ${periodo.id}:`, err);
+            evaluaciones[periodo.id] = [];
+          }
+        });
+
+        await Promise.all(promises);
+        setEvaluacionesPorPeriodo(evaluaciones);
+      } catch (err) {
+        console.error('Error al cargar evaluaciones:', err);
+      } finally {
+        setLoadingEvaluaciones(false);
+      }
+    };
+
+    fetchEvaluaciones();
+  }, [subjectId, periodos]);
 
   const togglePeriodo = (id: string) => {
     setExpandedPeriodoId((prev) => (prev === id ? null : id));
@@ -616,15 +694,44 @@ export default function StudentRightSidebar({
                                 marginBottom: '0.25rem',
                               }}
                             >
-                              <div
+                              {/* Nombre del subtema clickable: muestra SOLO este subtema en el centro */}
+                              <button
+                                onClick={() => {
+                                  if (!onTemaSelect) return;
+
+                                  console.log('🧭 onTemaSelect desde SUBTEMA:', {
+                                    temaId: tema.id,
+                                    temaNombre: tema.nombre,
+                                    subtemaId: subtema.id,
+                                    subtemaNombre: subtema.nombre,
+                                    periodo: periodo.nombre,
+                                  });
+
+                                  // Tema con SOLO este subtema
+                                  const temaSeleccionado = {
+                                    ...tema,
+                                    subtemas: tema.subtemas
+                                      ? tema.subtemas
+                                          .filter((st: Subtema) => st.id === subtema.id)
+                                          .map((st: Subtema) => ({ ...st }))
+                                      : [],
+                                  };
+
+                                  onTemaSelect(temaSeleccionado, periodo.nombre);
+                                }}
                                 style={{
                                   fontSize: '0.75rem',
                                   fontWeight: 500,
                                   color: '#374151',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  padding: 0,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
                                 }}
                               >
                                 {subtema.nombre}
-                              </div>
+                              </button>
                               <ul
                                 style={{
                                   listStyle: 'none',
@@ -697,6 +804,156 @@ export default function StudentRightSidebar({
                           ))}
                         </div>
                       ))}
+
+                      {/* Evaluaciones del período */}
+                      {evaluacionesPorPeriodo[periodo.id] && evaluacionesPorPeriodo[periodo.id].length > 0 && (
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.5rem' }}>
+                            📝 Evaluaciones del Período:
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {evaluacionesPorPeriodo[periodo.id].map((evaluacion) => (
+                              <div
+                                key={evaluacion.id}
+                                style={{
+                                  padding: '0.75rem',
+                                  marginBottom: '0.5rem',
+                                  background: '#f0fdf4',
+                                  borderRadius: '6px',
+                                  border: '1px solid #bbf7d0',
+                                  fontSize: '0.8rem',
+                                  color: '#1f2937',
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#166534' }}>
+                                  {evaluacion.nombre}
+                                </div>
+                                {evaluacion.descripcion && (
+                                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                                    {evaluacion.descripcion}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                                  <div>Inicio: {new Date(evaluacion.fecha_inicio).toLocaleDateString()}</div>
+                                  <div>Fin: {new Date(evaluacion.fecha_fin).toLocaleDateString()}</div>
+                                </div>
+                                {(() => {
+                                  // Si la evaluación no está activa, no mostrar botón
+                                  if (evaluacion.is_active === false) {
+                                    return null;
+                                  }
+                                  
+                                  // Validar fechas para determinar el estado del botón
+                                  const ahora = new Date();
+                                  const fechaInicio = new Date(evaluacion.fecha_inicio);
+                                  const fechaFin = new Date(evaluacion.fecha_fin);
+                                  const finDelDia = new Date(fechaFin);
+                                  finDelDia.setHours(23, 59, 59, 999);
+                                  
+                                  const estaDisponible = ahora >= fechaInicio && ahora <= finDelDia;
+                                  const haExpirado = ahora > finDelDia;
+                                  const aunNoDisponible = ahora < fechaInicio;
+                                  
+                                  // Si ha expirado pero está activado manualmente, permitir presentarlo
+                                  if (haExpirado && evaluacion.is_active === true) {
+                                    // Profesor activó manualmente después de la fecha fin - permitir presentarla
+                                    return (
+                                      <button
+                                        onClick={() => {
+                                          // TODO: Abrir visor de evaluación
+                                          alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                                        }}
+                                        style={{
+                                          width: '100%',
+                                          padding: '0.5rem',
+                                          background: '#10b981',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        📝 Presentar Evaluación
+                                      </button>
+                                    );
+                                  }
+                                  
+                                  if (haExpirado) {
+                                    return (
+                                      <button
+                                        disabled
+                                        style={{
+                                          width: '100%',
+                                          padding: '0.5rem',
+                                          background: '#9ca3af',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          cursor: 'not-allowed',
+                                        }}
+                                      >
+                                        ⏰ Evaluación Finalizada
+                                      </button>
+                                    );
+                                  }
+                                  
+                                  if (aunNoDisponible) {
+                                    const diff = fechaInicio.getTime() - ahora.getTime();
+                                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                    
+                                    return (
+                                      <button
+                                        disabled
+                                        style={{
+                                          width: '100%',
+                                          padding: '0.5rem',
+                                          background: '#f59e0b',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          cursor: 'not-allowed',
+                                        }}
+                                      >
+                                        ⏰ Disponible en {days > 0 ? `${days}d ` : ''}{hours}h
+                                      </button>
+                                    );
+                                  }
+                                  
+                                  // Está disponible
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        // TODO: Abrir visor de evaluación
+                                        alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        background: '#10b981',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      📝 Presentar Evaluación
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {renderContenidoViewer()}
                     </div>

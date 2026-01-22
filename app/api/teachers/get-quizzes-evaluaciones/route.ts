@@ -138,6 +138,45 @@ export async function GET(request: NextRequest) {
     console.log('📋 Periodos encontrados:', periodoIds.length);
     console.log('📋 Temas encontrados:', temas?.length || 0);
     console.log('📋 Subtemas encontrados:', subtemaIds.length);
+    
+    // Log detallado por materia
+    materias?.forEach((m: any) => {
+      const periodosMateria = m.periodos || [];
+      const esIngles = m.nombre.toLowerCase().includes('ingles') || m.nombre.toLowerCase().includes('inglés');
+      
+      if (esIngles) {
+        console.log(`\n🇬🇧 ===== MATERIA INGLÉS DETECTADA =====`);
+        console.log(`📚 Materia: ${m.nombre} (ID: ${m.id})`);
+        console.log(`  Curso ID: ${m.curso_id}`);
+        console.log(`  Periodos: ${periodosMateria.length}`);
+      } else {
+        console.log(`\n📚 Materia: ${m.nombre} (ID: ${m.id})`);
+        console.log(`  Periodos: ${periodosMateria.length}`);
+      }
+      
+      periodosMateria.forEach((p: any) => {
+        const temasDelPeriodo = temas?.filter((t: any) => t.periodo_id === p.id) || [];
+        const subtemasDelPeriodo = temasDelPeriodo.flatMap((t: any) => t.subtemas || []);
+        const subtemaIdsDelPeriodo = subtemasDelPeriodo.map((s: any) => s.id);
+        const quizzesDelPeriodo = subtemasDelPeriodo.length > 0 ? 
+          `(habría ${subtemasDelPeriodo.length} subtemas para buscar quizzes)` : '(sin subtemas)';
+        
+        if (esIngles) {
+          console.log(`    🇬🇧 ${p.nombre} (${p.id}):`);
+          console.log(`      - Temas: ${temasDelPeriodo.length}`);
+          temasDelPeriodo.forEach((t: any) => {
+            console.log(`        • ${t.nombre} (${t.id})`);
+            t.subtemas?.forEach((s: any) => {
+              console.log(`          - ${s.nombre} (${s.id})`);
+            });
+          });
+          console.log(`      - Subtemas IDs: ${subtemaIdsDelPeriodo.join(', ') || 'ninguno'}`);
+          console.log(`      - ${quizzesDelPeriodo}`);
+        } else {
+          console.log(`    - ${p.nombre} (${p.id}): ${temasDelPeriodo.length} temas ${quizzesDelPeriodo}`);
+        }
+      });
+    });
 
     // Obtener todos los quizzes de los subtemas
     let quizzes: any[] = [];
@@ -164,6 +203,7 @@ export async function GET(request: NextRequest) {
         console.log('✅ Quizzes básicos obtenidos:', quizzesData.length);
         
         // Ahora obtener la información completa de cada quiz con sus relaciones
+        // Usar LEFT JOIN en lugar de INNER JOIN para no perder quizzes
         for (const quiz of quizzesData) {
           const { data: subtemaData, error: subtemaError } = await supabaseAdmin
             .from('subtemas')
@@ -196,12 +236,33 @@ export async function GET(request: NextRequest) {
             .single();
 
           if (!subtemaError && subtemaData) {
+            const materiaNombre = subtemaData.temas?.periodos?.materias?.nombre || 'N/A';
+            const periodoNombre = subtemaData.temas?.periodos?.nombre || 'N/A';
+            
+            // Log específico para inglés
+            if (materiaNombre.toLowerCase().includes('ingles') || materiaNombre.toLowerCase().includes('inglés')) {
+              console.log(`\n🇬🇧 QUIZ DE INGLÉS ENCONTRADO: "${quiz.nombre}"`);
+              console.log(`  - Subtema: ${subtemaData.nombre} (${quiz.subtema_id})`);
+              console.log(`  - Tema: ${subtemaData.temas?.nombre || 'N/A'}`);
+              console.log(`  - Periodo: ${periodoNombre} (${subtemaData.temas?.periodos?.id || 'N/A'})`);
+              console.log(`  - Materia: ${materiaNombre} (${subtemaData.temas?.periodos?.materias?.id || 'N/A'})`);
+              console.log(`  - Estructura completa:`, {
+                tiene_subtemas: !!subtemaData,
+                tiene_temas: !!subtemaData.temas,
+                tiene_periodos: !!subtemaData.temas?.periodos,
+                tiene_materias: !!subtemaData.temas?.periodos?.materias,
+              });
+            }
+            
             quizzes.push({
               ...quiz,
               subtemas: subtemaData,
             });
           } else {
             console.warn(`⚠️ No se pudo obtener información del subtema ${quiz.subtema_id} para el quiz "${quiz.nombre}"`);
+            if (subtemaError) {
+              console.error(`  Error:`, subtemaError);
+            }
             // Agregar el quiz de todas formas pero sin la información del subtema
             quizzes.push({
               ...quiz,
@@ -211,9 +272,18 @@ export async function GET(request: NextRequest) {
         }
         
         console.log('✅ Quizzes obtenidos con relaciones:', quizzes.length);
+        
+        // Contar quizzes por materia
+        const quizzesPorMateria: Record<string, number> = {};
         quizzes.forEach((q: any) => {
           const periodoNombre = q.subtemas?.temas?.periodos?.nombre || 'N/A';
           const materiaNombre = q.subtemas?.temas?.periodos?.materias?.nombre || 'N/A';
+          
+          // Contar por materia
+          if (materiaNombre !== 'N/A') {
+            quizzesPorMateria[materiaNombre] = (quizzesPorMateria[materiaNombre] || 0) + 1;
+          }
+          
           console.log(`  - ${q.nombre} (Subtema: ${q.subtema_id}, Periodo: ${periodoNombre}, Materia: ${materiaNombre})`);
           if (!q.subtemas || !q.subtemas.temas || !q.subtemas.temas.periodos) {
             console.warn(`    ⚠️ Quiz "${q.nombre}" tiene estructura incompleta:`, {
@@ -223,24 +293,58 @@ export async function GET(request: NextRequest) {
             });
           }
         });
+        
+        console.log('\n📊 Resumen de quizzes por materia:', quizzesPorMateria);
       } else {
         console.log('⚠️ No se encontraron quizzes para los subtemas proporcionados');
+        
+        // Log detallado de qué subtemas se buscaron vs qué quizzes hay
+        console.log(`\n🔍 DEBUG: Subtemas buscados (${subtemaIds.length}):`, subtemaIds.slice(0, 5), '...');
+        
         // Intentar obtener todos los quizzes para debug
         const { data: allQuizzes } = await supabaseAdmin
           .from('quizzes')
           .select('id, nombre, subtema_id')
-          .limit(10);
-        console.log('🔍 Total de quizzes en la BD (primeros 10):', allQuizzes?.length || 0);
+          .limit(50);
+        
+        console.log(`🔍 Total de quizzes en la BD (primeros 50):`, allQuizzes?.length || 0);
+        
         if (allQuizzes && allQuizzes.length > 0) {
-          console.log('  Ejemplos:', allQuizzes.map((q: any) => `${q.nombre} (subtema: ${q.subtema_id})`));
           // Verificar si alguno de estos quizzes está en los subtemaIds
           const quizzesEnSubtemaIds = allQuizzes.filter((q: any) => subtemaIds.includes(q.subtema_id));
-          console.log(`  Quizzes que deberían estar en subtemaIds: ${quizzesEnSubtemaIds.length}`);
+          console.log(`  ✅ Quizzes que MATCH con subtemaIds: ${quizzesEnSubtemaIds.length}`);
+          
           if (quizzesEnSubtemaIds.length > 0) {
-            console.log('  ⚠️ Hay quizzes que deberían haberse obtenido pero no se obtuvieron');
+            console.log('  Lista de quizzes que deberían aparecer:');
             quizzesEnSubtemaIds.forEach((q: any) => {
               console.log(`    - ${q.nombre} (subtema_id: ${q.subtema_id})`);
             });
+          }
+          
+          // Verificar quizzes que NO están en los subtemaIds
+          const quizzesNoEncontrados = allQuizzes.filter((q: any) => !subtemaIds.includes(q.subtema_id));
+          if (quizzesNoEncontrados.length > 0) {
+            console.log(`\n  ⚠️ Quizzes que NO están en los subtemaIds buscados (${quizzesNoEncontrados.length}):`);
+            quizzesNoEncontrados.slice(0, 10).forEach((q: any) => {
+              console.log(`    - ${q.nombre} (subtema_id: ${q.subtema_id})`);
+            });
+            
+            // Obtener información de estos subtemas para ver a qué materia pertenecen
+            const subtemasNoBuscados = [...new Set(quizzesNoEncontrados.map((q: any) => q.subtema_id))];
+            if (subtemasNoBuscados.length > 0) {
+              const { data: subtemasInfo } = await supabaseAdmin
+                .from('subtemas')
+                .select('id, nombre, tema_id, temas!inner(periodo_id, periodos!inner(materia_id, materias!inner(nombre, curso_id)))')
+                .in('id', subtemasNoBuscados.slice(0, 10));
+              
+              if (subtemasInfo && subtemasInfo.length > 0) {
+                console.log('\n  📊 Información de estos subtemas:');
+                subtemasInfo.forEach((s: any) => {
+                  const materiaNombre = s.temas?.periodos?.materias?.nombre || 'N/A';
+                  console.log(`    - Subtema "${s.nombre}" (${s.id}) -> Materia: ${materiaNombre}`);
+                });
+              }
+            }
           }
         }
       }
@@ -317,39 +421,95 @@ export async function GET(request: NextRequest) {
       const materiasDelCurso = materias?.filter((m: any) => m.curso_id === curso.id) || [];
 
       const materiasConDatos = materiasDelCurso.map((materia: any) => {
-        console.log(`\n🔍 Procesando materia: ${materia.nombre} (ID: ${materia.id})`);
-        console.log(`  Periodos de la materia:`, materia.periodos?.map((p: any) => p.nombre).join(', ') || 'ninguno');
+        const esIngles = materia.nombre.toLowerCase().includes('ingles') || materia.nombre.toLowerCase().includes('inglés');
+        
+        if (esIngles) {
+          console.log(`\n🇬🇧 ===== PROCESANDO MATERIA INGLÉS =====`);
+        } else {
+          console.log(`\n🔍 Procesando materia: ${materia.nombre} (ID: ${materia.id})`);
+        }
+        console.log(`  Periodos de la materia:`, materia.periodos?.map((p: any) => `${p.nombre} (${p.id})`).join(', ') || 'ninguno');
         console.log(`  Total quizzes disponibles para filtrar: ${quizzes.length}`);
+        
+        // Mostrar todos los quizzes disponibles para inglés
+        if (esIngles) {
+          console.log(`\n  🔍 Todos los quizzes disponibles (${quizzes.length}):`);
+          quizzes.forEach((q: any, index: number) => {
+            const periodoNombre = q.subtemas?.temas?.periodos?.nombre || 'N/A';
+            const materiaNombre = q.subtemas?.temas?.periodos?.materias?.nombre || 'N/A';
+            const periodoId = q.subtemas?.temas?.periodo_id;
+            console.log(`    ${index + 1}. "${q.nombre}"`);
+            console.log(`       - Periodo: ${periodoNombre} (${periodoId || 'N/A'})`);
+            console.log(`       - Materia: ${materiaNombre}`);
+            console.log(`       - Estructura:`, {
+              tiene_subtemas: !!q.subtemas,
+              tiene_temas: !!q.subtemas?.temas,
+              tiene_periodos: !!q.subtemas?.temas?.periodos,
+              tiene_materias: !!q.subtemas?.temas?.periodos?.materias,
+            });
+          });
+        }
         
         // Obtener quizzes de esta materia (a través de subtemas -> temas -> periodos -> materias)
         const quizzesMateria = quizzes.filter((q: any) => {
-          // periodos es un objeto singular (no array) porque es una relación FK
-          const materiaId = q.subtemas?.temas?.periodos?.materias?.id;
-          const periodoId = q.subtemas?.temas?.periodo_id;
-          
-          // Debug
+          // Debug: verificar estructura completa
           if (!q.subtemas || !q.subtemas.temas) {
             console.log(`    ⚠️ Quiz "${q.nombre}" no tiene subtemas o temas`);
             return false;
           }
           
-          // Verificar que el periodo del quiz pertenece a esta materia
-          const periodo = materia.periodos?.find((p: any) => p.id === periodoId);
-          const matches = periodo && materiaId === materia.id;
+          const periodoId = q.subtemas?.temas?.periodo_id;
           
-          if (!matches && periodoId) {
-            console.log(`    ❌ Quiz "${q.nombre}" no coincide:`, {
-              materiaId_quiz: materiaId,
-              materiaId_esperado: materia.id,
-              periodoId_quiz: periodoId,
-              periodo_encontrado: periodo ? periodo.nombre : 'NO ENCONTRADO',
-              periodos_materia: materia.periodos?.map((p: any) => `${p.nombre} (${p.id})`).join(', '),
-            });
-          } else if (matches) {
-            console.log(`    ✅ Quiz "${q.nombre}" pertenece a materia "${materia.nombre}" y periodo "${periodo?.nombre}"`);
+          if (!periodoId) {
+            console.log(`    ⚠️ Quiz "${q.nombre}" no tiene periodo_id`);
+            return false;
           }
           
-          return matches;
+          // Obtener materiaId de dos formas posibles:
+          // 1. Desde periodos.materias (si la relación anidada se cargó)
+          const materiaIdFromRelation = q.subtemas?.temas?.periodos?.materias?.id;
+          // 2. Desde periodos.materia_id (campo directo de la FK)
+          const materiaIdFromFK = q.subtemas?.temas?.periodos?.materia_id;
+          
+          // Usar cualquiera de los dos que esté disponible
+          const materiaId = materiaIdFromRelation || materiaIdFromFK;
+          
+          // Verificar que el periodo del quiz pertenece a esta materia
+          const periodo = materia.periodos?.find((p: any) => p.id === periodoId);
+          
+          // Si el periodo está en esta materia, el quiz pertenece a esta materia
+          // Esto es más confiable que depender de la relación anidada que puede no cargarse
+          if (!periodo) {
+            // Periodo no está en esta materia, definitivamente no pertenece
+            if (esIngles) {
+              console.log(`    ❌ Quiz "${q.nombre}" NO pertenece a inglés:`);
+              console.log(`       - Periodo del quiz: ${periodoId || 'N/A'}`);
+              console.log(`       - Periodos de inglés:`, materia.periodos?.map((p: any) => `${p.nombre} (${p.id})`).join(', ') || 'ninguno');
+            }
+            return false;
+          }
+          
+          // Si hay materiaId disponible, verificar que coincida como validación adicional
+          if (materiaId && materiaId !== materia.id) {
+            if (esIngles) {
+              console.log(`    ⚠️ Quiz "${q.nombre}" tiene periodo en materia pero materiaId no coincide:`, {
+                materiaId_quiz: materiaId,
+                materiaId_esperado: materia.id,
+                periodoId_quiz: periodoId,
+                periodo_nombre: periodo.nombre,
+              });
+            }
+            // Aun así incluir el quiz porque el periodo pertenece a la materia
+            // (podría ser un problema de carga de relaciones)
+          }
+          
+          // Si llegamos aquí, el periodo pertenece a esta materia
+          if (esIngles) {
+            console.log(`    ✅ Quiz "${q.nombre}" SÍ pertenece a inglés - Periodo: "${periodo.nombre}"`);
+          } else {
+            console.log(`    ✅ Quiz "${q.nombre}" pertenece a materia "${materia.nombre}" y periodo "${periodo.nombre}"`);
+          }
+          return true;
         });
         
         console.log(`📊 Materia ${materia.nombre}: ${quizzesMateria.length} quizzes encontrados de ${quizzes.length} totales`);

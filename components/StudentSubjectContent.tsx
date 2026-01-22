@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase-client';
 import StudentQuizViewer from './StudentQuizViewer';
 
 interface Contenido {
@@ -39,6 +40,17 @@ interface Quiz {
   is_active?: boolean;
 }
 
+interface Evaluacion {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  fecha_inicio: string;
+  fecha_fin: string;
+  periodo_id: string;
+  materia_id: string;
+  is_active?: boolean;
+}
+
 interface Periodo {
   id: string;
   nombre: string;
@@ -60,51 +72,164 @@ function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => 
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isAvailable, setIsAvailable] = useState(false);
   const [hasExpired, setHasExpired] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [checkingCompletion, setCheckingCompletion] = useState(true);
+  const [individualAccess, setIndividualAccess] = useState<boolean | null>(null);
+  const [checkingIndividualAccess, setCheckingIndividualAccess] = useState(true);
+
+  // Verificar acceso individual del estudiante
+  useEffect(() => {
+    const checkIndividualAccess = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setCheckingIndividualAccess(false);
+          return;
+        }
+
+        const response = await fetch('/api/quizzes/check-student-access', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quiz_id: quiz.id,
+            estudiante_id: session.user.id,
+          }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          setIndividualAccess(result.has_individual_access); // true, false, o null
+        } else {
+          setIndividualAccess(null);
+        }
+      } catch (err) {
+        console.error('Error al verificar acceso individual:', err);
+        setIndividualAccess(null);
+      } finally {
+        setCheckingIndividualAccess(false);
+      }
+    };
+
+    checkIndividualAccess();
+  }, [quiz.id]);
+
+  // Verificar si el quiz está completado
+  useEffect(() => {
+    const checkCompletion = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const response = await fetch(`/api/quizzes/iniciar-intento`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quiz_id: quiz.id,
+            estudiante_id: session.user.id,
+          }),
+        });
+
+        const result = await response.json();
+        
+        // Si ya está completado, el endpoint devuelve un error con ya_completado: true
+        if (!response.ok && result.ya_completado) {
+          setIsCompleted(true);
+        } else {
+          setIsCompleted(false);
+        }
+      } catch (err) {
+        console.error('Error al verificar completado del quiz:', err);
+      } finally {
+        setCheckingCompletion(false);
+      }
+    };
+
+    checkCompletion();
+  }, [quiz.id]);
 
   useEffect(() => {
+    if (checkingIndividualAccess) return; // Esperar a que termine la verificación del acceso individual
+
     const checkAvailability = () => {
-      const ahora = new Date();
-      // Asegurarse de que las fechas se parseen correctamente
-      const fechaInicio = new Date(quiz.fecha_inicio);
-      const fechaFin = new Date(quiz.fecha_fin);
-
-      // Logs de depuración
-      console.log('🕐 Verificando disponibilidad del quiz:', quiz.nombre);
-      console.log('🕐 Fecha inicio (string):', quiz.fecha_inicio);
-      console.log('🕐 Fecha inicio (Date):', fechaInicio);
-      console.log('🕐 Fecha fin (string):', quiz.fecha_fin);
-      console.log('🕐 Fecha fin (Date):', fechaFin);
-      console.log('🕐 Ahora:', ahora);
-      console.log('🕐 Ahora < Inicio?', ahora < fechaInicio);
-      console.log('🕐 Ahora > Fin?', ahora > fechaFin);
-
-      // Validar que las fechas sean válidas
-      if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
-        console.error('❌ Fechas inválidas para el quiz:', quiz.nombre);
+      // Si hay un acceso individual definido, usar ese estado
+      // Si individualAccess es null, usar el estado global (quiz.is_active)
+      const isActive = individualAccess !== null ? individualAccess : (quiz.is_active !== false);
+      
+      if (!isActive) {
         setIsAvailable(false);
         setHasExpired(false);
         setTimeRemaining(null);
         return;
       }
-
-      if (ahora < fechaInicio) {
-        // Quiz aún no está disponible - calcular tiempo restante
-        const diff = fechaInicio.getTime() - ahora.getTime();
-        const seconds = Math.max(0, Math.floor(diff / 1000));
-        console.log('⏰ Quiz no disponible aún. Tiempo restante:', seconds, 'segundos');
-        setTimeRemaining(seconds);
+      
+      const ahora = new Date();
+      
+      // Parsear fechas y normalizar a UTC para evitar problemas de zona horaria
+      let fechaInicio: Date;
+      let fechaFin: Date;
+      
+      try {
+        // Si la fecha viene como string ISO, parsear directamente
+        if (typeof quiz.fecha_inicio === 'string') {
+          fechaInicio = new Date(quiz.fecha_inicio);
+        } else {
+          fechaInicio = new Date(quiz.fecha_inicio);
+        }
+        
+        if (typeof quiz.fecha_fin === 'string') {
+          fechaFin = new Date(quiz.fecha_fin);
+        } else {
+          fechaFin = new Date(quiz.fecha_fin);
+        }
+        
+        // Validar que las fechas sean válidas
+        if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
+          console.error('❌ Fechas inválidas para el quiz:', quiz.nombre);
+          setIsAvailable(false);
+          setHasExpired(false);
+          setTimeRemaining(null);
+          return;
+        }
+        
+        // Comparar fechas (sin hora, solo fecha, o incluyendo hora según venga)
+        // Si la fecha_fin tiene hora, considerar hasta el final del día
+        const finDelDia = new Date(fechaFin);
+        finDelDia.setHours(23, 59, 59, 999);
+        
+        if (ahora < fechaInicio) {
+          // Quiz aún no está disponible - calcular tiempo restante
+          const diff = fechaInicio.getTime() - ahora.getTime();
+          const seconds = Math.max(0, Math.floor(diff / 1000));
+          setTimeRemaining(seconds);
+          setIsAvailable(false);
+          setHasExpired(false);
+        } else if (ahora > finDelDia) {
+          // Si pasó la fecha fin PERO el quiz está activado (individual o global)
+          // Si hay acceso individual activado O el quiz está activado globalmente, permitirlo
+          if (individualAccess === true || (individualAccess === null && quiz.is_active === true)) {
+            // Profesor activó manualmente después de la fecha fin - permitir presentarlo
+            setIsAvailable(true);
+            setHasExpired(false);
+            setTimeRemaining(null);
+          } else {
+            // Quiz ya expiró (después de la fecha fin y no está activado)
+            setIsAvailable(false);
+            setHasExpired(true);
+            setTimeRemaining(null);
+          }
+        } else {
+          // Quiz está disponible (ahora >= fechaInicio Y ahora <= fechaFin)
+          setIsAvailable(true);
+          setHasExpired(false);
+          setTimeRemaining(null);
+        }
+      } catch (error) {
+        console.error('Error al validar fechas del quiz:', error);
         setIsAvailable(false);
-        setHasExpired(false);
-      } else if (ahora > fechaFin) {
-        // Quiz ya expiró
-        console.log('❌ Quiz ya expiró');
-        setIsAvailable(false);
-        setHasExpired(true);
-        setTimeRemaining(null);
-      } else {
-        // Quiz está disponible
-        console.log('✅ Quiz está disponible');
-        setIsAvailable(true);
         setHasExpired(false);
         setTimeRemaining(null);
       }
@@ -113,13 +238,13 @@ function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => 
     // Verificar inmediatamente
     checkAvailability();
 
-    // Actualizar cada segundo si el quiz no está disponible aún
+    // Actualizar cada segundo para verificar cambios en tiempo real
     const interval = setInterval(() => {
       checkAvailability();
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [quiz.fecha_inicio, quiz.fecha_fin, quiz.nombre]);
+  }, [quiz.fecha_inicio, quiz.fecha_fin, quiz.nombre, quiz.is_active, individualAccess, checkingIndividualAccess]);
 
   const formatTimeRemaining = (seconds: number): string => {
     if (seconds <= 0) return '0s';
@@ -138,7 +263,58 @@ function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => 
     return parts.join(' ');
   };
 
-  if (isAvailable) {
+  // Orden de prioridad:
+  // 1. Si está completado -> Mostrar "Completado"
+  // 2. Si expiró (pasó la fecha fin) -> Mostrar "Finalizado" (DESHABILITADO)
+  // 3. Si está disponible -> Mostrar botón activo
+  // 4. Si aún no está disponible -> Mostrar contador regresivo
+  
+  // Si está completado, mostrar botón deshabilitado
+  if (isCompleted && !checkingCompletion) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+        }}
+      >
+        ✅ Quiz Completado
+      </button>
+    );
+  }
+
+  // Si expiró (pasó la fecha fin), mostrar botón deshabilitado
+  if (hasExpired && !checkingCompletion) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+        }}
+      >
+        ⏰ Quiz Finalizado
+      </button>
+    );
+  }
+
+  // Si está disponible y no está completado ni expirado
+  if (isAvailable && !isCompleted && !hasExpired && !checkingCompletion) {
     return (
       <button
         onClick={onStart}
@@ -166,28 +342,8 @@ function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => 
     );
   }
 
-  if (hasExpired) {
-    return (
-      <button
-        disabled
-        style={{
-          padding: '0.75rem 1.5rem',
-          background: '#9ca3af',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'not-allowed',
-          fontSize: '0.95rem',
-          fontWeight: 500,
-          width: '100%',
-        }}
-      >
-        ⏰ Quiz Finalizado
-      </button>
-    );
-  }
-
   // Quiz aún no está disponible - mostrar conteo regresivo
+  // (Esta sección se muestra cuando ahora < fechaInicio)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <button
@@ -228,6 +384,312 @@ function QuizAvailabilityButton({ quiz, onStart }: { quiz: Quiz; onStart: () => 
   );
 }
 
+// Componente para mostrar el botón de disponibilidad de evaluación con conteo regresivo
+function EvaluationAvailabilityButton({ evaluacion, onStart }: { evaluacion: Evaluacion; onStart: () => void }) {
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [hasExpired, setHasExpired] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [checkingCompletion, setCheckingCompletion] = useState(true);
+  const [individualAccess, setIndividualAccess] = useState<boolean | null>(null);
+  const [checkingIndividualAccess, setCheckingIndividualAccess] = useState(true);
+
+  // Verificar acceso individual del estudiante
+  useEffect(() => {
+    const checkIndividualAccess = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setCheckingIndividualAccess(false);
+          return;
+        }
+
+        const response = await fetch('/api/evaluaciones/check-student-access', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            evaluacion_id: evaluacion.id,
+            estudiante_id: session.user.id,
+          }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          setIndividualAccess(result.has_individual_access); // true, false, o null
+        } else {
+          setIndividualAccess(null);
+        }
+      } catch (err) {
+        console.error('Error al verificar acceso individual:', err);
+        setIndividualAccess(null);
+      } finally {
+        setCheckingIndividualAccess(false);
+      }
+    };
+
+    checkIndividualAccess();
+  }, [evaluacion.id]);
+
+  // Verificar si la evaluación está completada
+  useEffect(() => {
+    const checkCompletion = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Verificar si hay un intento completado
+        const { data: { session: sessionCheck } } = await supabase.auth.getSession();
+        if (!sessionCheck) {
+          setCheckingCompletion(false);
+          return;
+        }
+
+        // Por ahora, solo verificamos disponibilidad por fechas
+        // TODO: Verificar intentos completados cuando exista el endpoint
+        setIsCompleted(false);
+      } catch (err) {
+        console.error('Error al verificar completado de evaluación:', err);
+      } finally {
+        setCheckingCompletion(false);
+      }
+    };
+
+    checkCompletion();
+  }, [evaluacion.id]);
+
+  useEffect(() => {
+    if (checkingIndividualAccess) return; // Esperar a que termine la verificación del acceso individual
+
+    const checkAvailability = () => {
+      // Si hay un acceso individual definido, usar ese estado
+      // Si individualAccess es null, usar el estado global (evaluacion.is_active)
+      const isActive = individualAccess !== null ? individualAccess : (evaluacion.is_active !== false);
+      
+      if (!isActive) {
+        setIsAvailable(false);
+        setHasExpired(false);
+        setTimeRemaining(null);
+        return;
+      }
+      
+      const ahora = new Date();
+      
+      // Parsear fechas y normalizar para evitar problemas de zona horaria
+      let fechaInicio: Date;
+      let fechaFin: Date;
+      
+      try {
+        // Si la fecha viene como string ISO, parsear directamente
+        if (typeof evaluacion.fecha_inicio === 'string') {
+          fechaInicio = new Date(evaluacion.fecha_inicio);
+        } else {
+          fechaInicio = new Date(evaluacion.fecha_inicio);
+        }
+        
+        if (typeof evaluacion.fecha_fin === 'string') {
+          fechaFin = new Date(evaluacion.fecha_fin);
+        } else {
+          fechaFin = new Date(evaluacion.fecha_fin);
+        }
+        
+        // Validar que las fechas sean válidas
+        if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
+          console.error('❌ Fechas inválidas para la evaluación:', evaluacion.nombre);
+          setIsAvailable(false);
+          setHasExpired(false);
+          setTimeRemaining(null);
+          return;
+        }
+        
+        // Comparar fechas
+        // Si la fecha_fin tiene hora, considerar hasta el final del día
+        const finDelDia = new Date(fechaFin);
+        finDelDia.setHours(23, 59, 59, 999);
+        
+        if (ahora < fechaInicio) {
+          // Evaluación aún no está disponible - calcular tiempo restante
+          const diff = fechaInicio.getTime() - ahora.getTime();
+          const seconds = Math.max(0, Math.floor(diff / 1000));
+          setTimeRemaining(seconds);
+          setIsAvailable(false);
+          setHasExpired(false);
+        } else if (ahora > finDelDia) {
+          // Si pasó la fecha fin PERO la evaluación está activada (individual o global)
+          // Si hay acceso individual activado O la evaluación está activada globalmente, permitirlo
+          if (individualAccess === true || (individualAccess === null && evaluacion.is_active === true)) {
+            // Profesor activó manualmente después de la fecha fin - permitir presentarla
+            setIsAvailable(true);
+            setHasExpired(false);
+            setTimeRemaining(null);
+          } else {
+            // Evaluación ya expiró (después de la fecha fin y no está activada)
+            setIsAvailable(false);
+            setHasExpired(true);
+            setTimeRemaining(null);
+          }
+        } else {
+          // Evaluación está disponible (ahora >= fechaInicio Y ahora <= fechaFin)
+          setIsAvailable(true);
+          setHasExpired(false);
+          setTimeRemaining(null);
+        }
+      } catch (error) {
+        console.error('Error al validar fechas de la evaluación:', error);
+        setIsAvailable(false);
+        setHasExpired(false);
+        setTimeRemaining(null);
+      }
+    };
+
+    // Verificar inmediatamente
+    checkAvailability();
+    
+    // Actualizar cada segundo para verificar cambios en tiempo real
+    const interval = setInterval(() => {
+      checkAvailability();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [evaluacion.fecha_inicio, evaluacion.fecha_fin, evaluacion.nombre, evaluacion.is_active, individualAccess, checkingIndividualAccess]);
+
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds <= 0) return '0s';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+
+    return parts.join(' ');
+  };
+
+  // Orden de prioridad:
+  // 1. Si está completado -> Mostrar "Completada"
+  // 2. Si expiró (pasó la fecha fin) -> Mostrar "Finalizada" (DESHABILITADO)
+  // 3. Si está disponible -> Mostrar botón activo
+  // 4. Si aún no está disponible -> Mostrar contador regresivo
+  
+  // Si está completado, mostrar botón deshabilitado
+  if (isCompleted && !checkingCompletion) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+        }}
+      >
+        ✅ Evaluación Completada
+      </button>
+    );
+  }
+
+  // Si expiró (pasó la fecha fin), mostrar botón deshabilitado
+  if (hasExpired && !checkingCompletion) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+        }}
+      >
+        ⏰ Evaluación Finalizada
+      </button>
+    );
+  }
+
+  // Si está disponible y no está completado ni expirado
+  if (isAvailable && !isCompleted && !hasExpired && !checkingCompletion) {
+    return (
+      <button
+        onClick={onStart}
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#10b981',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#059669';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#10b981';
+        }}
+      >
+        📝 Presentar Evaluación
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <button
+        disabled
+        style={{
+          padding: '0.75rem 1.5rem',
+          background: '#f59e0b',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'not-allowed',
+          fontSize: '0.95rem',
+          fontWeight: 500,
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+        }}
+      >
+        <span>⏰ Disponible en:</span>
+        <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>
+          {timeRemaining !== null && timeRemaining > 0 ? formatTimeRemaining(timeRemaining) : 'Calculando...'}
+        </span>
+      </button>
+      {timeRemaining !== null && timeRemaining > 0 && (
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', margin: 0 }}>
+          Inicia: {new Date(evaluacion.fecha_inicio).toLocaleString('es-ES', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function StudentSubjectContent({ 
   subjectId, 
   subjectName, 
@@ -252,6 +714,9 @@ export default function StudentSubjectContent({
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [expandedPeriodoId, setExpandedPeriodoId] = useState<string | null>(null);
+  const [evaluacionesPorPeriodo, setEvaluacionesPorPeriodo] = useState<Record<string, Evaluacion[]>>({});
+  const [loadingEvaluaciones, setLoadingEvaluaciones] = useState(false);
+  const [selectedEvaluacionId, setSelectedEvaluacionId] = useState<string | null>(null);
   
   // Función para toggle del acordeón de periodos
   const togglePeriodo = useCallback((periodoId: string) => {
@@ -312,7 +777,20 @@ export default function StudentSubjectContent({
         // IMPORTANTE: NO limpiar selectedTema aquí porque podría estar seleccionado desde el sidebar
         // El tema seleccionado se maneja en el useEffect de selectedTemaFromSidebar
 
-        const response = await fetch(`/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('No hay sesión activa');
+        }
+
+        const response = await fetch(
+          `/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          }
+        );
         const result = await response.json();
 
         if (!response.ok) {
@@ -331,6 +809,59 @@ export default function StudentSubjectContent({
 
     fetchData();
   }, [subjectId, selectedTemaFromSidebar]);
+
+  // Cargar evaluaciones del período cuando se cargan los períodos
+  useEffect(() => {
+    if (!subjectId || periodos.length === 0) {
+      setEvaluacionesPorPeriodo({});
+      return;
+    }
+
+    const fetchEvaluaciones = async () => {
+      setLoadingEvaluaciones(true);
+      const evaluaciones: Record<string, Evaluacion[]> = {};
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Obtener evaluaciones de todos los períodos
+        const promises = periodos.map(async (periodo) => {
+          try {
+            const response = await fetch(
+              `/api/evaluaciones/get-evaluacion?periodo_id=${periodo.id}&materia_id=${subjectId}`,
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+              }
+            );
+            const result = await response.json();
+            if (response.ok && result.data) {
+              // Filtrar solo evaluaciones activas
+              const evaluacionesArray = Array.isArray(result.data) ? result.data : [result.data];
+              evaluaciones[periodo.id] = evaluacionesArray.filter((e: Evaluacion) => e.is_active !== false);
+            } else {
+              evaluaciones[periodo.id] = [];
+            }
+          } catch (err) {
+            console.error(`Error al cargar evaluaciones del período ${periodo.id}:`, err);
+            evaluaciones[periodo.id] = [];
+          }
+        });
+
+        await Promise.all(promises);
+        setEvaluacionesPorPeriodo(evaluaciones);
+      } catch (err) {
+        console.error('Error al cargar evaluaciones:', err);
+      } finally {
+        setLoadingEvaluaciones(false);
+      }
+    };
+
+    fetchEvaluaciones();
+  }, [subjectId, periodos]);
 
   // Cargar quices cuando se selecciona un tema
   useEffect(() => {
@@ -520,7 +1051,7 @@ export default function StudentSubjectContent({
     // RETORNAR INMEDIATAMENTE - NO continuar con el código de abajo que muestra todos los periodos
     return (
       <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-        {/* Título del tema */}
+        {/* Título del tema - SOLO UNA VEZ */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <button
@@ -571,23 +1102,24 @@ export default function StudentSubjectContent({
               fontSize: '2rem',
               fontWeight: 700,
               color: '#111827',
-              marginBottom: '0.75rem',
+              marginBottom: temaParaMostrar.tema.descripcion ? '0.75rem' : '2rem',
             }}
           >
             {temaParaMostrar.tema.nombre}
           </h1>
-              {temaParaMostrar.tema.descripcion && (
-                <p
-                  style={{
-                    fontSize: '1rem',
-                    color: '#4b5563',
-                    lineHeight: '1.6',
-                    maxWidth: '800px',
-                  }}
-                >
-                  {temaParaMostrar.tema.descripcion}
-                </p>
-              )}
+          {temaParaMostrar.tema.descripcion && (
+            <p
+              style={{
+                fontSize: '1rem',
+                color: '#4b5563',
+                lineHeight: '1.6',
+                maxWidth: '800px',
+                marginBottom: '0',
+              }}
+            >
+              {temaParaMostrar.tema.descripcion}
+            </p>
+          )}
         </div>
 
         {/* Subtemas - SOLO los subtemas de este tema específico */}
@@ -654,34 +1186,85 @@ export default function StudentSubjectContent({
                             background: '#f9fafb',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '1.5rem' }}>
-                              {contenido.tipo === 'video' && '🎥'}
-                              {contenido.tipo === 'archivo' && '📎'}
-                              {contenido.tipo === 'foro' && '💬'}
-                            </span>
-                            <h4
-                              style={{
-                                fontSize: '1.125rem',
-                                fontWeight: 600,
-                                color: '#111827',
-                              }}
-                            >
-                              {contenido.titulo}
-                            </h4>
-                          </div>
-                          {contenido.descripcion && (
-                            <p
-                              style={{
-                                fontSize: '0.95rem',
-                                color: '#6b7280',
-                                marginBottom: '1rem',
-                                lineHeight: '1.6',
-                              }}
-                            >
-                              {contenido.descripcion}
-                            </p>
-                          )}
+                          {(() => {
+                            // Función auxiliar para normalizar strings (quitar espacios extra, convertir a minúsculas, y manejar null/undefined)
+                            const normalize = (str: string | null | undefined): string => {
+                              if (!str) return '';
+                              return str.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+                            };
+                            
+                            // Normalizar strings para comparación
+                            const tituloTema = normalize(temaParaMostrar.tema.nombre);
+                            const tituloContenido = normalize(contenido.titulo);
+                            const descripcionTema = normalize(temaParaMostrar.tema.descripcion);
+                            const descripcionContenido = normalize(contenido.descripcion);
+                            
+                            // Verificar si hay duplicación (solo si ambos valores existen y no están vacíos)
+                            const tituloDuplicado = tituloTema.length > 0 && tituloContenido.length > 0 && tituloTema === tituloContenido;
+                            const descripcionDuplicada = descripcionTema.length > 0 && descripcionContenido.length > 0 && descripcionTema === descripcionContenido;
+                            
+                            // Debug: Verificar comparación
+                            if (tituloTema && tituloContenido) {
+                              console.log('🔍 Comparación de títulos:', {
+                                tema: tituloTema,
+                                contenido: tituloContenido,
+                                iguales: tituloDuplicado
+                              });
+                            }
+                            if (descripcionTema && descripcionContenido) {
+                              console.log('🔍 Comparación de descripciones:', {
+                                tema: descripcionTema,
+                                contenido: descripcionContenido,
+                                iguales: descripcionDuplicada
+                              });
+                            }
+                            
+                            return (
+                              <>
+                                {/* Solo mostrar título si NO es igual al título del tema */}
+                                {!tituloDuplicado ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                                    <span style={{ fontSize: '1.5rem' }}>
+                                      {contenido.tipo === 'video' && '🎥'}
+                                      {contenido.tipo === 'archivo' && '📎'}
+                                      {contenido.tipo === 'foro' && '💬'}
+                                    </span>
+                                    <h4
+                                      style={{
+                                        fontSize: '1.125rem',
+                                        fontWeight: 600,
+                                        color: '#111827',
+                                      }}
+                                    >
+                                      {contenido.titulo}
+                                    </h4>
+                                  </div>
+                                ) : (
+                                  /* Si el título está duplicado, solo mostrar el icono sin título */
+                                  <div style={{ marginBottom: descripcionDuplicada ? '0' : '0.75rem' }}>
+                                    <span style={{ fontSize: '1.5rem' }}>
+                                      {contenido.tipo === 'video' && '🎥'}
+                                      {contenido.tipo === 'archivo' && '📎'}
+                                      {contenido.tipo === 'foro' && '💬'}
+                                    </span>
+                                  </div>
+                                )}
+                                {/* Solo mostrar descripción si NO es igual a la descripción del tema */}
+                                {contenido.descripcion && !descripcionDuplicada && (
+                                  <p
+                                    style={{
+                                      fontSize: '0.95rem',
+                                      color: '#6b7280',
+                                      marginBottom: '1rem',
+                                      lineHeight: '1.6',
+                                    }}
+                                  >
+                                    {contenido.descripcion}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
 
                           {/* Video */}
                           {contenido.tipo === 'video' && contenido.url && (() => {
@@ -1138,6 +1721,52 @@ export default function StudentSubjectContent({
                     ))}
                   </div>
                 ))}
+                
+                {/* Evaluaciones del período */}
+                {evaluacionesPorPeriodo[periodo.id] && evaluacionesPorPeriodo[periodo.id].length > 0 && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem' }}>
+                      📝 Evaluaciones del Período
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {evaluacionesPorPeriodo[periodo.id].map((evaluacion) => (
+                        <div
+                          key={evaluacion.id}
+                          style={{
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            padding: '1rem',
+                            background: '#f0fdf4',
+                          }}
+                        >
+                          <h5 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', marginBottom: '0.5rem' }}>
+                            {evaluacion.nombre}
+                          </h5>
+                          {evaluacion.descripcion && (
+                            <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                              {evaluacion.descripcion}
+                            </p>
+                          )}
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                            <div>
+                              <strong>Fecha inicio:</strong> {new Date(evaluacion.fecha_inicio).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <strong>Fecha fin:</strong> {new Date(evaluacion.fecha_fin).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <EvaluationAvailabilityButton
+                            evaluacion={evaluacion}
+                            onStart={() => {
+                              // TODO: Abrir visor de evaluación
+                              alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               )}
             </div>
@@ -1396,33 +2025,84 @@ export default function StudentSubjectContent({
                                 background: '#f9fafb',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                <span style={{ fontSize: '1.2rem' }}>
-                                  {contenido.tipo === 'video' && '🎥'}
-                                  {contenido.tipo === 'archivo' && '📎'}
-                                  {contenido.tipo === 'foro' && '💬'}
-                                </span>
-                                <h4
-                                  style={{
-                                    fontSize: '1rem',
-                                    fontWeight: 600,
-                                    color: '#111827',
-                                  }}
-                                >
-                                  {contenido.titulo}
-                                </h4>
-                              </div>
-                              {contenido.descripcion && (
-                                <p
-                                  style={{
-                                    fontSize: '0.875rem',
-                                    color: '#6b7280',
-                                    marginBottom: '0.75rem',
-                                  }}
-                                >
-                                  {contenido.descripcion}
-                                </p>
-                              )}
+                              {(() => {
+                                // Función auxiliar para normalizar strings
+                                const normalize = (str: string | null | undefined): string => {
+                                  if (!str) return '';
+                                  return str.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+                                };
+                                
+                                // Normalizar strings para comparación
+                                const tituloTema = normalize(selectedTema?.tema.nombre);
+                                const tituloContenido = normalize(contenido.titulo);
+                                const descripcionTema = normalize(selectedTema?.tema.descripcion);
+                                const descripcionContenido = normalize(contenido.descripcion);
+                                
+                                // Verificar si hay duplicación
+                                const tituloDuplicado = tituloTema.length > 0 && tituloContenido.length > 0 && tituloTema === tituloContenido;
+                                const descripcionDuplicada = descripcionTema.length > 0 && descripcionContenido.length > 0 && descripcionTema === descripcionContenido;
+                                
+                                // Debug: Verificar comparación
+                                if (tituloTema && tituloContenido) {
+                                  console.log('🔍 [Vista 2] Comparación de títulos:', {
+                                    tema: tituloTema,
+                                    contenido: tituloContenido,
+                                    iguales: tituloDuplicado
+                                  });
+                                }
+                                if (descripcionTema && descripcionContenido) {
+                                  console.log('🔍 [Vista 2] Comparación de descripciones:', {
+                                    tema: descripcionTema,
+                                    contenido: descripcionContenido,
+                                    iguales: descripcionDuplicada
+                                  });
+                                }
+                                
+                                return (
+                                  <>
+                                    {/* Solo mostrar título si NO es igual al título del tema */}
+                                    {!tituloDuplicado ? (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '1.2rem' }}>
+                                          {contenido.tipo === 'video' && '🎥'}
+                                          {contenido.tipo === 'archivo' && '📎'}
+                                          {contenido.tipo === 'foro' && '💬'}
+                                        </span>
+                                        <h4
+                                          style={{
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            color: '#111827',
+                                          }}
+                                        >
+                                          {contenido.titulo}
+                                        </h4>
+                                      </div>
+                                    ) : (
+                                      /* Si el título está duplicado, solo mostrar el icono */
+                                      <div style={{ marginBottom: descripcionDuplicada ? '0' : '0.5rem' }}>
+                                        <span style={{ fontSize: '1.2rem' }}>
+                                          {contenido.tipo === 'video' && '🎥'}
+                                          {contenido.tipo === 'archivo' && '📎'}
+                                          {contenido.tipo === 'foro' && '💬'}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {/* Solo mostrar descripción si NO es igual a la descripción del tema */}
+                                    {contenido.descripcion && !descripcionDuplicada && (
+                                      <p
+                                        style={{
+                                          fontSize: '0.875rem',
+                                          color: '#6b7280',
+                                          marginBottom: '0.75rem',
+                                        }}
+                                      >
+                                        {contenido.descripcion}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
 
                               {/* Video */}
                               {contenido.tipo === 'video' && contenido.url && (() => {

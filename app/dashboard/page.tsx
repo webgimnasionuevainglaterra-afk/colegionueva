@@ -481,6 +481,12 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveMenu('dashboard');
                   setIsMobileMenuOpen(false);
+                  // Si es estudiante, limpiar el tema seleccionado para mostrar el video institucional
+                  if (userRole === 'estudiante') {
+                    setSelectedTema(null);
+                    setSelectedStudentSubjectId(null);
+                    setSelectedStudentSubjectName(null);
+                  }
                 }}
               >
                 Dashboard
