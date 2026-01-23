@@ -194,6 +194,7 @@ export async function POST(request: NextRequest) {
           evaluacion_id: evaluacion.id,
           pregunta_texto: preguntaData.pregunta_texto,
           tiempo_segundos: preguntaData.tiempo_segundos || 30,
+          archivo_url: preguntaData.archivo_url || null,
           orden: i + 1,
         })
         .select()

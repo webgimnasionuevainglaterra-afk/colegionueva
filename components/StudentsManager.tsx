@@ -52,6 +52,15 @@ export default function StudentsManager() {
   useEffect(() => {
     if (selectedCourse) {
       fetchEstudiantes(selectedCourse.id);
+      
+      // Actualizar el estado online periódicamente (cada 10 segundos)
+      const refreshInterval = setInterval(() => {
+        fetchEstudiantes(selectedCourse.id);
+      }, 10000); // 10 segundos
+
+      return () => {
+        clearInterval(refreshInterval);
+      };
     } else {
       setEstudiantes([]);
       setEstudiantesFiltrados([]);

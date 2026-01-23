@@ -24,3 +24,4 @@ COMMENT ON COLUMN evaluaciones_estudiantes.is_active IS 'Indica si la evaluació
 COMMENT ON COLUMN evaluaciones_estudiantes.activado_por IS 'ID del profesor o administrador que activó/desactivó la evaluación para este estudiante';
 
 
+

@@ -198,7 +198,7 @@
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
 }
 
@@ -210,6 +210,8 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
+  min-width: 0; /* Permite que el contenido se ajuste */
+  overflow: hidden; /* Evita desbordamiento */
 }
 
 .stat-icon {
@@ -249,12 +251,18 @@
 
 .stat-info {
   flex: 1;
+  min-width: 0; /* Permite que el texto se ajuste */
+  overflow: hidden; /* Evita desbordamiento */
 }
 
 .stat-label {
   font-size: 0.875rem;
   color: #6b7280;
   margin: 0 0 0.25rem 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.3;
 }
 
 .stat-value {

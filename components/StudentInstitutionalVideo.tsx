@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import StudentGradesView from './StudentGradesView';
 import '../app/css/courses-list.css';
 
 export default function StudentInstitutionalVideo() {
@@ -193,6 +194,9 @@ export default function StudentInstitutionalVideo() {
           </div>
         )}
       </div>
+
+      {/* Calificaciones por materia */}
+      <StudentGradesView />
     </div>
   );
 }

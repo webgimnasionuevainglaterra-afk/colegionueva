@@ -47,3 +47,4 @@ SELECT EXISTS (
 ) AS tiene_mensaje_foro_id;
 
 
+

@@ -11,6 +11,7 @@ import AdministratorsList from '@/components/AdministratorsList';
 import CreateCourseForm from '@/components/CreateCourseForm';
 import CoursesList from '@/components/CoursesList';
 import ContentManager from '@/components/ContentManager';
+import ContentStructureManager from '@/components/ContentStructureManager';
 import CreateTeacherForm from '@/components/CreateTeacherForm';
 import TeachersList from '@/components/TeachersList';
 import StudentsManager from '@/components/StudentsManager';
@@ -19,6 +20,7 @@ import TeacherProgramsView from '@/components/TeacherProgramsView';
 import TeacherReportsView from '@/components/TeacherReportsView';
 import TeacherDashboard from '@/components/TeacherDashboard';
 import TeacherCalendar from '@/components/TeacherCalendar';
+import AdminCalendar from '@/components/AdminCalendar';
 import EvaluationsResultsView from '@/components/EvaluationsResultsView';
 import TeacherSidebar from '@/components/TeacherSidebar';
 import TeacherRightSidebar from '@/components/TeacherRightSidebar';
@@ -81,6 +83,7 @@ export default function Dashboard() {
   const [selectedStudentSubjectId, setSelectedStudentSubjectId] = useState<string | null>(null);
   const [selectedStudentSubjectName, setSelectedStudentSubjectName] = useState<string | null>(null);
   const [selectedTema, setSelectedTema] = useState<{ tema: any; periodoNombre: string } | null>(null);
+  const [selectedEvaluacionId, setSelectedEvaluacionId] = useState<string | null>(null);
 
   // Debug: Verificar cuando cambia selectedTema
   useEffect(() => {
@@ -248,40 +251,20 @@ export default function Dashboard() {
         const token = session?.access_token;
 
         if (token) {
-          // Si es estudiante, usar la API de estudiantes
-          if (userRole === 'estudiante') {
-            // DESHABILITADO TEMPORALMENTE - Esta llamada causa error 500 y no es crítica
-            // Se puede reactivar cuando se corrija el endpoint
-            // fetch('/api/estudiantes/update-user-status', {
-            //   method: 'POST',
-            //   headers: {
-            //     'Content-Type': 'application/json',
-            //     'Authorization': `Bearer ${token}`,
-            //   },
-            //   body: JSON.stringify({
-            //     isOnline: isOnline,
-            //   }),
-            // })
-            // .then(() => {
-            //   // Silenciar éxito
-            // })
-            // .catch(() => {
-            //   // Silenciar errores - esta actualización no es crítica para el funcionamiento
-            // });
-          } else {
-            // Para administradores y profesores, usar la API de admin
-            await fetch('/api/admin/update-user-status', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                userId: user.id,
-                isOnline: isOnline,
-              }),
-            });
-          }
+          // Usar la API de admin que ahora soporta todos los tipos de usuario
+          await fetch('/api/admin/update-user-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              isOnline: isOnline,
+            }),
+          }).catch((error) => {
+            console.error('Error al actualizar estado online:', error);
+          });
         }
       } catch (error) {
         console.error('Error al actualizar estado online:', error);
@@ -291,15 +274,34 @@ export default function Dashboard() {
     // Marcar como online cuando se carga la página
     updateOnlineStatus(true);
 
+    // Heartbeat: actualizar estado online cada 30 segundos mientras el usuario está activo
+    const heartbeatInterval = setInterval(() => {
+      updateOnlineStatus(true);
+    }, 30000); // 30 segundos
+
     // Marcar como offline cuando se cierra la página o se desconecta
     const handleBeforeUnload = () => {
       updateOnlineStatus(false);
     };
 
+    // Detectar cuando la página pierde el foco (pestaña inactiva)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Opcional: marcar como offline cuando la pestaña está oculta
+        // updateOnlineStatus(false);
+      } else {
+        // Marcar como online cuando la pestaña vuelve a estar visible
+        updateOnlineStatus(true);
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      clearInterval(heartbeatInterval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       updateOnlineStatus(false);
     };
   }, [user, userRole]);
@@ -312,13 +314,24 @@ export default function Dashboard() {
       }
 
       try {
-        console.log('🔍 Iniciando fetchAdminInfo para usuario:', user.id);
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Obtener sesión y refrescar si es necesario
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('❌ Error al obtener sesión:', sessionError);
           setLoadingAdminInfo(false);
           return;
+        }
+
+        // Si no hay sesión, intentar refrescar
+        if (!session) {
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError || !refreshedSession) {
+            console.warn('⚠️ No se pudo refrescar la sesión');
+            setLoadingAdminInfo(false);
+            return;
+          }
+          session = refreshedSession;
         }
 
         const token = session?.access_token;
@@ -329,7 +342,6 @@ export default function Dashboard() {
           return;
         }
 
-        console.log('📡 Llamando a /api/admin/get-current-administrator');
         const response = await fetch('/api/admin/get-current-administrator', {
           method: 'GET',
           headers: {
@@ -338,27 +350,46 @@ export default function Dashboard() {
           },
         });
 
-        console.log('📥 Respuesta recibida:', response.status, response.statusText);
-
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Datos del administrador:', result);
           if (result.success && result.data) {
             setAdminInfo({
               nombre: result.data.nombre || 'Usuario',
               apellido: result.data.apellido || '',
               foto_url: result.data.foto_url,
               role: result.data.role || 'Administrador',
-              is_online: result.data.is_online !== undefined ? result.data.is_online : true,
+              is_online: result.data.is_online !== undefined ? result.data.is_online : false,
             });
           }
-        } else {
-          const errorText = await response.text();
-          console.error('❌ Error en respuesta:', response.status, errorText);
+        } else if (response.status === 401) {
+          // Si el token es inválido, intentar refrescar la sesión
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshedSession) {
+            // Reintentar con el nuevo token
+            const retryResponse = await fetch('/api/admin/get-current-administrator', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${refreshedSession.access_token}`,
+              },
+            });
+            if (retryResponse.ok) {
+              const retryResult = await retryResponse.json();
+              if (retryResult.success && retryResult.data) {
+                setAdminInfo({
+                  nombre: retryResult.data.nombre || 'Usuario',
+                  apellido: retryResult.data.apellido || '',
+                  foto_url: retryResult.data.foto_url,
+                  role: retryResult.data.role || 'Administrador',
+                  is_online: retryResult.data.is_online !== undefined ? retryResult.data.is_online : false,
+                });
+              }
+            }
+          }
         }
       } catch (error: any) {
-        console.error('❌ Error al obtener información del administrador:', error);
-        console.error('❌ Stack trace:', error.stack);
+        // Silenciar errores de red o de autenticación - no son críticos para el funcionamiento
+        console.debug('Error al obtener información del administrador:', error);
       } finally {
         setLoadingAdminInfo(false);
       }
@@ -366,6 +397,15 @@ export default function Dashboard() {
 
     if (user) {
       fetchAdminInfo();
+      
+      // Actualizar el estado del perfil periódicamente (cada 10 segundos)
+      const refreshInterval = setInterval(() => {
+        fetchAdminInfo();
+      }, 10000); // 10 segundos
+
+      return () => {
+        clearInterval(refreshInterval);
+      };
     }
   }, [user]);
 
@@ -450,7 +490,9 @@ export default function Dashboard() {
       : [
           { id: 'crear-cursos', label: 'Crear Cursos' },
           { id: 'grados', label: 'Gestionar Cursos' },
+          { id: 'gestionar-contenidos', label: 'Gestionar Contenidos' },
           { id: 'video-institucional', label: 'Video Institucional' },
+          { id: 'calendario', label: 'Calendario' },
         ];
 
 
@@ -488,10 +530,13 @@ export default function Dashboard() {
             <nav className={`header-menu ${isMobileMenuOpen ? 'mobile-menu-open' : ''}`}>
               {/* Dashboard visible para todos */}
               <button
-                className={`menu-item ${activeMenu === 'dashboard' ? 'active' : ''}`}
+                className={`menu-item ${activeMenu === 'dashboard' && !selectedTeacherId && !selectedStudentId ? 'active' : ''}`}
                 onClick={() => {
                   setActiveMenu('dashboard');
                   setIsMobileMenuOpen(false);
+                  // Limpiar selecciones para volver al dashboard principal
+                  setSelectedTeacherId(null);
+                  setSelectedStudentId(null);
                   // Si es estudiante, limpiar el tema seleccionado para mostrar el video institucional
                   if (userRole === 'estudiante') {
                     setSelectedTema(null);
@@ -906,27 +951,35 @@ export default function Dashboard() {
               teacherId={selectedTeacherId}
               onClose={() => setSelectedTeacherId(null)}
             />
+          ) : activeMenu === 'gestionar-contenidos' && userRole === 'super_admin' ? (
+            <ContentStructureManager />
+          ) : activeMenu === 'calendario' && userRole === 'super_admin' ? (
+            <AdminCalendar />
           ) : activeMenu === 'dashboard' && userRole === 'super_admin' ? (
             <AdminDashboard />
           ) : activeMenu === 'dashboard' && userRole === 'estudiante' ? (
             (() => {
-              // Verificar si hay un tema seleccionado
+              // Verificar si hay un tema seleccionado o una evaluación seleccionada
               const tieneTema = selectedTema && selectedTema.tema && selectedTema.tema.id;
+              const tieneEvaluacion = selectedEvaluacionId !== null && selectedEvaluacionId !== undefined;
               
-              console.log('🔍 Dashboard - Verificación de tema:', {
+              console.log('🔍 Dashboard - Verificación de tema y evaluación:', {
                 selectedTema,
                 tieneTema,
                 temaId: selectedTema?.tema?.id,
                 temaNombre: selectedTema?.tema?.nombre,
+                selectedEvaluacionId,
+                tieneEvaluacion,
                 esNull: selectedTema === null,
                 esUndefined: selectedTema === undefined
               });
               
-              if (tieneTema) {
-                console.log('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema);
+              // Si hay tema o evaluación, mostrar StudentSubjectContent
+              if (tieneTema || tieneEvaluacion) {
+                console.log('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema, 'o evaluación:', selectedEvaluacionId);
                 return (
                   <StudentSubjectContent
-                    key={`tema-${selectedTema.tema.id}`}
+                    key={`content-${selectedTema?.tema?.id || selectedEvaluacionId || 'default'}`}
                     subjectId={selectedStudentSubjectId}
                     subjectName={selectedStudentSubjectName}
                     selectedTemaFromSidebar={selectedTema}
@@ -934,12 +987,18 @@ export default function Dashboard() {
                       console.log('🔄 Limpiando tema desde dashboard');
                       setSelectedTema(null);
                     }}
+                    selectedEvaluacionId={selectedEvaluacionId}
+                    onEvaluacionClear={() => {
+                      console.log('🔄 Limpiando evaluación desde dashboard');
+                      setSelectedEvaluacionId(null);
+                    }}
                   />
                 );
               } else {
-                console.log('📺 Dashboard mostrando StudentInstitutionalVideo (no hay tema seleccionado)');
+                console.log('📺 Dashboard mostrando StudentInstitutionalVideo (no hay tema ni evaluación seleccionada)');
                 console.log('📺 selectedTema valor:', selectedTema);
                 console.log('📺 selectedTema.tema valor:', selectedTema?.tema);
+                console.log('📺 selectedEvaluacionId valor:', selectedEvaluacionId);
                 return <StudentInstitutionalVideo />;
               }
             })()
@@ -1005,6 +1064,10 @@ export default function Dashboard() {
             subjectId={selectedStudentSubjectId}
             subjectName={selectedStudentSubjectName}
             onTemaSelect={handleTemaSelect}
+            onEvaluacionSelect={(evaluacionId) => {
+              console.log('🔄 Seleccionando evaluación desde sidebar:', evaluacionId);
+              setSelectedEvaluacionId(evaluacionId);
+            }}
           />
         )}
       </div>

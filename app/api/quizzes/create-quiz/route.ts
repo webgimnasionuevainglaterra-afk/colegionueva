@@ -189,6 +189,7 @@ export async function POST(request: NextRequest) {
           quiz_id: quiz.id,
           pregunta_texto: preguntaData.pregunta_texto,
           tiempo_segundos: preguntaData.tiempo_segundos || 30,
+          archivo_url: preguntaData.archivo_url || null,
           orden: i + 1,
         })
         .select()

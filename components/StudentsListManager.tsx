@@ -35,6 +35,15 @@ export default function StudentsListManager() {
 
   useEffect(() => {
     fetchEstudiantes();
+    
+    // Actualizar el estado online periódicamente (cada 10 segundos)
+    const refreshInterval = setInterval(() => {
+      fetchEstudiantes();
+    }, 10000); // 10 segundos
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   // Filtrar estudiantes por búsqueda
@@ -224,35 +233,56 @@ export default function StudentsListManager() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                {estudiante.foto_url ? (
-                  <img
-                    src={estudiante.foto_url}
-                    alt={`${estudiante.nombre} ${estudiante.apellido}`}
+                <div style={{ position: 'relative' }}>
+                  {estudiante.foto_url ? (
+                    <img
+                      src={estudiante.foto_url}
+                      alt={`${estudiante.nombre} ${estudiante.apellido}`}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '2px solid #e5e7eb',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '50%',
+                        background: '#e5e7eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.5rem',
+                        color: '#6b7280',
+                      }}
+                    >
+                      {estudiante.nombre.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {/* Indicador de estado online */}
+                  <span 
+                    className={`online-status-indicator ${estudiante.is_online ? 'online' : 'offline'}`}
+                    title={estudiante.is_online ? 'En línea' : 'Desconectado'}
                     style={{
-                      width: '60px',
-                      height: '60px',
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: '14px',
+                      height: '14px',
                       borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '2px solid #e5e7eb',
+                      border: '2px solid white',
+                      zIndex: 10,
+                      background: estudiante.is_online ? '#10b981' : '#ef4444',
+                      boxShadow: estudiante.is_online 
+                        ? '0 0 0 2px white, 0 0 4px rgba(16, 185, 129, 0.5)' 
+                        : '0 0 0 2px white, 0 0 4px rgba(239, 68, 68, 0.5)',
                     }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: '60px',
-                      height: '60px',
-                      borderRadius: '50%',
-                      background: '#e5e7eb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.5rem',
-                      color: '#6b7280',
-                    }}
-                  >
-                    {estudiante.nombre.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                  ></span>
+                </div>
                 <div style={{ flex: 1 }}>
                   <h4 style={{ fontSize: '1rem', fontWeight: 600, color: '#1f2937', margin: 0, marginBottom: '0.25rem' }}>
                     {estudiante.nombre} {estudiante.apellido}

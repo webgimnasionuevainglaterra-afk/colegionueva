@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import StudentQuizViewer from './StudentQuizViewer';
+import StudentEvaluacionViewer from './StudentEvaluacionViewer';
 
 interface Contenido {
   id: string;
@@ -65,6 +66,8 @@ interface StudentSubjectContentProps {
   subjectName: string | null;
   selectedTemaFromSidebar?: { tema: Tema; periodoNombre: string } | null;
   onTemaClear?: () => void;
+  selectedEvaluacionId?: string | null;
+  onEvaluacionClear?: () => void;
 }
 
 // Componente para mostrar el botón de disponibilidad del quiz con conteo regresivo
@@ -694,7 +697,9 @@ export default function StudentSubjectContent({
   subjectId, 
   subjectName, 
   selectedTemaFromSidebar,
-  onTemaClear 
+  onTemaClear,
+  selectedEvaluacionId: externalSelectedEvaluacionId,
+  onEvaluacionClear
 }: StudentSubjectContentProps) {
   console.log('🔍 StudentSubjectContent renderizado con props:', {
     subjectId,
@@ -716,7 +721,25 @@ export default function StudentSubjectContent({
   const [expandedPeriodoId, setExpandedPeriodoId] = useState<string | null>(null);
   const [evaluacionesPorPeriodo, setEvaluacionesPorPeriodo] = useState<Record<string, Evaluacion[]>>({});
   const [loadingEvaluaciones, setLoadingEvaluaciones] = useState(false);
-  const [selectedEvaluacionId, setSelectedEvaluacionId] = useState<string | null>(null);
+  const [internalSelectedEvaluacionId, setInternalSelectedEvaluacionId] = useState<string | null>(null);
+  
+  // Usar el prop externo si está disponible, sino usar estado interno
+  // Asegurarse de que siempre sea null o string, nunca undefined
+  const selectedEvaluacionId = externalSelectedEvaluacionId !== undefined && externalSelectedEvaluacionId !== null 
+    ? externalSelectedEvaluacionId 
+    : internalSelectedEvaluacionId;
+  
+  const handleSetSelectedEvaluacionId = (id: string | null) => {
+    if (externalSelectedEvaluacionId !== undefined && onEvaluacionClear) {
+      // Si hay prop externo, usar el callback
+      if (id === null && onEvaluacionClear) {
+        onEvaluacionClear();
+      }
+    } else {
+      // Si no hay prop externo, usar estado interno
+      setInternalSelectedEvaluacionId(id);
+    }
+  };
   
   // Función para toggle del acordeón de periodos
   const togglePeriodo = useCallback((periodoId: string) => {
@@ -976,6 +999,53 @@ export default function StudentSubjectContent({
   }
   
   // ============================================
+  // SI HAY EVALUACIÓN SELECCIONADA (SIN TEMA): MOSTRARLA INMEDIATAMENTE
+  // IMPORTANTE: Este return debe estar DESPUÉS de todos los hooks
+  // ============================================
+  if (!tieneTemaValido && selectedEvaluacionId) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '1rem',
+            right: '1rem',
+            zIndex: 100,
+          }}
+        >
+          <button
+            onClick={() => {
+              handleSetSelectedEvaluacionId(null);
+            }}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+            }}
+          >
+            ← Volver
+          </button>
+        </div>
+        <StudentEvaluacionViewer
+          evaluacionId={selectedEvaluacionId}
+          onClose={() => {
+            handleSetSelectedEvaluacionId(null);
+          }}
+          onComplete={(calificacion) => {
+            console.log('Evaluación completada con calificación:', calificacion);
+            // NO cerrar automáticamente - dejar que el usuario vea el resumen y cierre cuando quiera
+          }}
+        />
+      </div>
+    );
+  }
+
+  // ============================================
   // SI HAY TEMA SELECCIONADO: RETORNAR INMEDIATAMENTE
   // NO EJECUTAR NINGÚN CÓDIGO DESPUÉS DE ESTE RETURN
   // ============================================
@@ -1014,6 +1084,49 @@ export default function StudentSubjectContent({
             onComplete={(calificacion) => {
               console.log('Quiz completado con calificación:', calificacion);
               // Opcional: mostrar notificación o actualizar estado
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (selectedEvaluacionId) {
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={() => {
+                handleSetSelectedEvaluacionId(null);
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#f3f4f6',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+              }}
+            >
+              ← Volver al tema
+            </button>
+          </div>
+          <StudentEvaluacionViewer
+            evaluacionId={selectedEvaluacionId}
+            onClose={() => {
+              handleSetSelectedEvaluacionId(null);
+            }}
+            onComplete={(calificacion) => {
+              console.log('Evaluación completada con calificación:', calificacion);
+              handleSetSelectedEvaluacionId(null);
             }}
           />
         </div>
@@ -1758,8 +1871,7 @@ export default function StudentSubjectContent({
                           <EvaluationAvailabilityButton
                             evaluacion={evaluacion}
                             onStart={() => {
-                              // TODO: Abrir visor de evaluación
-                              alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                              handleSetSelectedEvaluacionId(evaluacion.id);
                             }}
                           />
                         </div>

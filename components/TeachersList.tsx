@@ -22,6 +22,7 @@ interface Teacher {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  is_online?: boolean;
   cursos: Course[];
 }
 
@@ -33,6 +34,15 @@ export default function TeachersList() {
 
   useEffect(() => {
     fetchTeachers();
+    
+    // Actualizar el estado online periódicamente (cada 10 segundos)
+    const refreshInterval = setInterval(() => {
+      fetchTeachers();
+    }, 10000); // 10 segundos
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchTeachers = async () => {
@@ -152,9 +162,9 @@ export default function TeachersList() {
               {teachers.map((teacher) => (
                 <tr key={teacher.id}>
                   <td>
-                    <div className="avatar-container">
+                    <div className="avatar-container" style={{ position: 'relative', display: 'inline-block' }}>
                       {teacher.foto_url ? (
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                           <Image
                             src={teacher.foto_url}
                             alt={`${teacher.nombre} ${teacher.apellido}`}
@@ -164,12 +174,50 @@ export default function TeachersList() {
                             style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                             unoptimized
                           />
+                          {/* Indicador de estado online */}
+                          <span 
+                            className={`online-status-indicator ${teacher.is_online ? 'online' : 'offline'}`}
+                            title={teacher.is_online ? 'En línea' : 'Desconectado'}
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '50%',
+                              border: '2px solid white',
+                              zIndex: 10,
+                              background: teacher.is_online ? '#10b981' : '#ef4444',
+                              boxShadow: teacher.is_online 
+                                ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                                : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                            }}
+                          ></span>
                         </div>
                       ) : (
-                        <div className="avatar-placeholder small-avatar">
+                        <div className="avatar-placeholder small-avatar" style={{ position: 'relative' }}>
                           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
+                          {/* Indicador de estado online */}
+                          <span 
+                            className={`online-status-indicator ${teacher.is_online ? 'online' : 'offline'}`}
+                            title={teacher.is_online ? 'En línea' : 'Desconectado'}
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '50%',
+                              border: '2px solid white',
+                              zIndex: 10,
+                              background: teacher.is_online ? '#10b981' : '#ef4444',
+                              boxShadow: teacher.is_online 
+                                ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                                : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                            }}
+                          ></span>
                         </div>
                       )}
                     </div>

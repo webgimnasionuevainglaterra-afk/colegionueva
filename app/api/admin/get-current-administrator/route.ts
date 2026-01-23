@@ -38,14 +38,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token no proporcionado' },
+        { status: 401 }
+      );
+    }
     
     // Verificar el token y obtener el usuario
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (userError || !user) {
+    if (userError) {
+      console.error('Error al verificar token:', userError);
       return NextResponse.json(
-        { error: 'Usuario no válido' },
+        { error: 'Token inválido o expirado' },
+        { status: 401 }
+      );
+    }
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Usuario no encontrado' },
         { status: 401 }
       );
     }
@@ -101,7 +116,7 @@ export async function GET(request: NextRequest) {
             apellido: profesorData.apellido,
             foto_url: profesorData.foto_url,
             role: 'Profesor',
-            is_online: true,
+            is_online: profesorData.is_online !== undefined ? profesorData.is_online : false,
           }
         },
         { status: 200 }
@@ -126,7 +141,7 @@ export async function GET(request: NextRequest) {
             apellido: estudianteData.apellido,
             foto_url: estudianteData.foto_url,
             role: 'Estudiante',
-            is_online: true,
+            is_online: estudianteData.is_online !== undefined ? estudianteData.is_online : false,
           }
         },
         { status: 200 }

@@ -18,6 +18,7 @@ interface Profesor {
   foto_url: string | null;
   email: string;
   is_active: boolean;
+  is_online?: boolean;
   cursos: Array<{
     id: string;
     nombre: string;
@@ -31,6 +32,15 @@ export default function AdminRightSidebar({ onTeacherClick, isOpen = true, onClo
 
   useEffect(() => {
     fetchTeachers();
+    
+    // Actualizar el estado online periódicamente (cada 10 segundos)
+    const refreshInterval = setInterval(() => {
+      fetchTeachers();
+    }, 10000); // 10 segundos
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchTeachers = async () => {
@@ -109,23 +119,63 @@ export default function AdminRightSidebar({ onTeacherClick, isOpen = true, onClo
                   }}
                   className="admin-teacher-item"
                 >
-                  <div className="admin-teacher-photo">
+                  <div className="admin-teacher-photo" style={{ position: 'relative' }}>
                     {profesor.foto_url ? (
-                      <Image
-                        src={profesor.foto_url}
-                        alt={`${profesor.nombre} ${profesor.apellido}`}
-                        width={40}
-                        height={40}
-                        style={{
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                        }}
-                        unoptimized
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <Image
+                          src={profesor.foto_url}
+                          alt={`${profesor.nombre} ${profesor.apellido}`}
+                          width={40}
+                          height={40}
+                          style={{
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                          }}
+                          unoptimized
+                        />
+                        {/* Indicador de estado online */}
+                        <span 
+                          className={`online-status-indicator ${profesor.is_online ? 'online' : 'offline'}`}
+                          title={profesor.is_online ? 'En línea' : 'Desconectado'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid white',
+                            zIndex: 10,
+                            background: profesor.is_online ? '#10b981' : '#ef4444',
+                            boxShadow: profesor.is_online 
+                              ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                              : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                          }}
+                        ></span>
+                      </div>
                     ) : (
-                      <div className="admin-teacher-photo-placeholder">
+                      <div className="admin-teacher-photo-placeholder" style={{ position: 'relative' }}>
                         {profesor.nombre.charAt(0)}
                         {profesor.apellido.charAt(0)}
+                        {/* Indicador de estado online */}
+                        <span 
+                          className={`online-status-indicator ${profesor.is_online ? 'online' : 'offline'}`}
+                          title={profesor.is_online ? 'En línea' : 'Desconectado'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid white',
+                            zIndex: 10,
+                            background: profesor.is_online ? '#10b981' : '#ef4444',
+                            boxShadow: profesor.is_online 
+                              ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                              : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                          }}
+                        ></span>
                       </div>
                     )}
                   </div>

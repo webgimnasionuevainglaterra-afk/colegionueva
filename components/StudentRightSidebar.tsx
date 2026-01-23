@@ -9,6 +9,7 @@ interface StudentRightSidebarProps {
   subjectId?: string | null;
   subjectName?: string | null;
   onTemaSelect?: (tema: Tema, periodoNombre: string) => void;
+  onEvaluacionSelect?: (evaluacionId: string) => void;
 }
 
 interface Contenido {
@@ -58,6 +59,7 @@ export default function StudentRightSidebar({
   subjectId,
   subjectName,
   onTemaSelect,
+  onEvaluacionSelect,
 }: StudentRightSidebarProps) {
   console.log('🔵 StudentRightSidebar renderizado con onTemaSelect:', !!onTemaSelect, typeof onTemaSelect);
   
@@ -860,8 +862,9 @@ export default function StudentRightSidebar({
                                     return (
                                       <button
                                         onClick={() => {
-                                          // TODO: Abrir visor de evaluación
-                                          alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                                          if (onEvaluacionSelect) {
+                                            onEvaluacionSelect(evaluacion.id);
+                                          }
                                         }}
                                         style={{
                                           width: '100%',
@@ -930,8 +933,9 @@ export default function StudentRightSidebar({
                                   return (
                                     <button
                                       onClick={() => {
-                                        // TODO: Abrir visor de evaluación
-                                        alert('Visor de evaluación en desarrollo. Por favor, contacte al administrador.');
+                                        if (onEvaluacionSelect) {
+                                          onEvaluacionSelect(evaluacion.id);
+                                        }
                                       }}
                                       style={{
                                         width: '100%',

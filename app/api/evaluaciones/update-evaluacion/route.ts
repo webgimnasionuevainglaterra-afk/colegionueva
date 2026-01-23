@@ -127,6 +127,7 @@ export async function PUT(request: NextRequest) {
           .update({
             pregunta_texto: preguntaData.pregunta_texto,
             tiempo_segundos: preguntaData.tiempo_segundos || 30,
+            archivo_url: preguntaData.archivo_url || null,
             orden: i + 1,
           })
           .eq('id', preguntaData.id);
@@ -209,6 +210,7 @@ export async function PUT(request: NextRequest) {
             evaluacion_id: evaluacion_id,
             pregunta_texto: preguntaData.pregunta_texto,
             tiempo_segundos: preguntaData.tiempo_segundos || 30,
+            archivo_url: preguntaData.archivo_url || null,
             orden: i + 1,
           })
           .select()

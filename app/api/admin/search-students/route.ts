@@ -53,21 +53,21 @@ export async function GET(request: NextRequest) {
       const searchTerm = query.trim();
       const { data: data1, error: error1 } = await supabaseAdmin
         .from('estudiantes')
-        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active')
+        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active, is_online')
         .ilike('nombre', `%${searchTerm}%`)
         .order('nombre', { ascending: true })
         .limit(100);
       
       const { data: data2, error: error2 } = await supabaseAdmin
         .from('estudiantes')
-        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active')
+        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active, is_online')
         .ilike('apellido', `%${searchTerm}%`)
         .order('nombre', { ascending: true })
         .limit(100);
       
       const { data: data3, error: error3 } = await supabaseAdmin
         .from('estudiantes')
-        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active')
+        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active, is_online')
         .ilike('tarjeta_identidad', `%${searchTerm}%`)
         .order('nombre', { ascending: true })
         .limit(100);
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     } else {
       const { data, error } = await supabaseAdmin
         .from('estudiantes')
-        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active')
+        .select('id, nombre, apellido, foto_url, tarjeta_identidad, is_active, is_online')
         .order('nombre', { ascending: true })
         .limit(100);
       estudiantes = data || [];

@@ -16,6 +16,7 @@ interface Pregunta {
   pregunta_texto: string;
   tiempo_segundos: number;
   orden: number;
+  archivo_url?: string | null;
   opciones: Opcion[];
 }
 
@@ -51,6 +52,8 @@ export default function StudentQuizViewer({ quizId, onClose, onComplete }: Stude
   const [timeUp, setTimeUp] = useState(false); // Indica si el tiempo se agotó
   const [respuestasDetalladas, setRespuestasDetalladas] = useState<any[]>([]); // Resumen detallado de respuestas
   const [showResumen, setShowResumen] = useState(false); // Mostrar resumen detallado
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
 
   // Calcular tiempo total del quiz (suma de todos los tiempo_segundos de las preguntas)
   const calcularTiempoTotal = useCallback((preguntas: Pregunta[]): number => {
@@ -938,15 +941,56 @@ export default function StudentQuizViewer({ quizId, onClose, onComplete }: Stude
               marginBottom: '1.5rem',
             }}
           >
-            <h3
-              style={{
-                fontSize: '1.25rem',
-                fontWeight: 600,
-                color: '#111827',
-              }}
-            >
-              {preguntaActual.pregunta_texto}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+              <h3
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  color: '#111827',
+                  margin: 0,
+                }}
+              >
+                {preguntaActual.pregunta_texto}
+              </h3>
+              {/* Icono de archivo si existe */}
+              {preguntaActual.archivo_url && (
+                <button
+                  onClick={() => {
+                    setSelectedFileUrl(preguntaActual.archivo_url || null);
+                    setShowFileModal(true);
+                  }}
+                  style={{
+                    padding: '0.5rem',
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.875rem',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2563eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#3b82f6';
+                  }}
+                  title="Ver archivo adjunto"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  Ver archivo
+                </button>
+              )}
+            </div>
             <div
               style={{
                 fontSize: '0.875rem',
@@ -1052,6 +1096,108 @@ export default function StudentQuizViewer({ quizId, onClose, onComplete }: Stude
           {currentQuestionIndex < totalPreguntas - 1 ? 'Siguiente →' : 'Finalizar Quiz'}
         </button>
       </div>
+
+      {/* Modal para mostrar archivo/imagen */}
+      {showFileModal && selectedFileUrl && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+            padding: '2rem',
+          }}
+          onClick={() => {
+            setShowFileModal(false);
+            setSelectedFileUrl(null);
+          }}
+        >
+          <div 
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              position: 'relative',
+              padding: '1rem',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#1f2937' }}>
+                Archivo adjunto
+              </h3>
+              <button
+                onClick={() => {
+                  setShowFileModal(false);
+                  setSelectedFileUrl(null);
+                }}
+                style={{
+                  padding: '0.5rem',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+              {selectedFileUrl.toLowerCase().endsWith('.pdf') || selectedFileUrl.includes('pdf') ? (
+                <iframe
+                  src={selectedFileUrl}
+                  style={{
+                    width: '100%',
+                    minHeight: '600px',
+                    border: 'none',
+                    borderRadius: '8px',
+                  }}
+                  title="Archivo PDF"
+                />
+              ) : (
+                <img
+                  src={selectedFileUrl}
+                  alt="Archivo adjunto"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '70vh',
+                    borderRadius: '8px',
+                    objectFit: 'contain',
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <a
+                href={selectedFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#3b82f6',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  display: 'inline-block',
+                }}
+              >
+                Abrir en nueva pestaña
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

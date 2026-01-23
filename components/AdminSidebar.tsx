@@ -18,6 +18,7 @@ interface Estudiante {
   foto_url: string | null;
   tarjeta_identidad: string;
   is_active: boolean;
+  is_online?: boolean;
   cursos: Array<{
     id: string;
     nombre: string;
@@ -32,6 +33,15 @@ export default function AdminSidebar({ onStudentClick, isOpen = true, onClose }:
 
   useEffect(() => {
     fetchStudents();
+    
+    // Actualizar el estado online periódicamente (cada 10 segundos)
+    const refreshInterval = setInterval(() => {
+      fetchStudents();
+    }, 10000); // 10 segundos
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   // Buscar estudiantes cuando cambia el query
@@ -148,23 +158,63 @@ export default function AdminSidebar({ onStudentClick, isOpen = true, onClose }:
                   }}
                   className="admin-student-item"
                 >
-                  <div className="admin-student-photo">
+                  <div className="admin-student-photo" style={{ position: 'relative' }}>
                     {estudiante.foto_url ? (
-                      <Image
-                        src={estudiante.foto_url}
-                        alt={`${estudiante.nombre} ${estudiante.apellido}`}
-                        width={40}
-                        height={40}
-                        style={{
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                        }}
-                        unoptimized
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <Image
+                          src={estudiante.foto_url}
+                          alt={`${estudiante.nombre} ${estudiante.apellido}`}
+                          width={40}
+                          height={40}
+                          style={{
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                          }}
+                          unoptimized
+                        />
+                        {/* Indicador de estado online */}
+                        <span 
+                          className={`online-status-indicator ${estudiante.is_online ? 'online' : 'offline'}`}
+                          title={estudiante.is_online ? 'En línea' : 'Desconectado'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid white',
+                            zIndex: 10,
+                            background: estudiante.is_online ? '#10b981' : '#ef4444',
+                            boxShadow: estudiante.is_online 
+                              ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                              : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                          }}
+                        ></span>
+                      </div>
                     ) : (
-                      <div className="admin-student-photo-placeholder">
+                      <div className="admin-student-photo-placeholder" style={{ position: 'relative' }}>
                         {estudiante.nombre.charAt(0)}
                         {estudiante.apellido.charAt(0)}
+                        {/* Indicador de estado online */}
+                        <span 
+                          className={`online-status-indicator ${estudiante.is_online ? 'online' : 'offline'}`}
+                          title={estudiante.is_online ? 'En línea' : 'Desconectado'}
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid white',
+                            zIndex: 10,
+                            background: estudiante.is_online ? '#10b981' : '#ef4444',
+                            boxShadow: estudiante.is_online 
+                              ? '0 0 0 1px white, 0 0 3px rgba(16, 185, 129, 0.5)' 
+                              : '0 0 0 1px white, 0 0 3px rgba(239, 68, 68, 0.5)',
+                          }}
+                        ></span>
                       </div>
                     )}
                   </div>
