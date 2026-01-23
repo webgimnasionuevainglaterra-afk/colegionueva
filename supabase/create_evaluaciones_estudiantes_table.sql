@@ -23,3 +23,4 @@ COMMENT ON TABLE evaluaciones_estudiantes IS 'Control de activación individual 
 COMMENT ON COLUMN evaluaciones_estudiantes.is_active IS 'Indica si la evaluación está activa para este estudiante específico';
 COMMENT ON COLUMN evaluaciones_estudiantes.activado_por IS 'ID del profesor o administrador que activó/desactivó la evaluación para este estudiante';
 
+

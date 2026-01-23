@@ -14,3 +14,4 @@ COMMENT ON COLUMN evaluaciones_periodo.is_active IS 'Indica si la evaluación es
 
 
 
+

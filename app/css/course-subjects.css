@@ -54,7 +54,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: linear-gradient(90deg, rgb(37, 99, 235), rgb(29, 78, 216));
-  color: white;
+  color: white !important;
   border: none;
   border-radius: 8px;
   font-family: var(--font-nunito-sans), sans-serif;
@@ -69,11 +69,17 @@
   background: linear-gradient(90deg, rgb(29, 78, 216), rgb(30, 64, 175));
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  color: white !important;
 }
 
 .create-subject-btn svg {
   width: 20px;
   height: 20px;
+  color: white !important;
+}
+
+.create-subject-btn span {
+  color: white !important;
 }
 
 .subjects-list {

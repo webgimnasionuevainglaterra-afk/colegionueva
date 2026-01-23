@@ -14,6 +14,7 @@ import ContentManager from '@/components/ContentManager';
 import CreateTeacherForm from '@/components/CreateTeacherForm';
 import TeachersList from '@/components/TeachersList';
 import StudentsManager from '@/components/StudentsManager';
+import StudentsListManager from '@/components/StudentsListManager';
 import TeacherProgramsView from '@/components/TeacherProgramsView';
 import TeacherReportsView from '@/components/TeacherReportsView';
 import TeacherDashboard from '@/components/TeacherDashboard';
@@ -394,6 +395,13 @@ export default function Dashboard() {
     };
   }, [isSettingsOpen, isUsersMenuOpen, isProgramsMenuOpen]);
 
+  // Abrir automáticamente el modal de crear curso cuando se selecciona "Crear Cursos"
+  useEffect(() => {
+    if (activeMenu === 'crear-cursos' && !isCreateCourseModalOpen) {
+      setIsCreateCourseModalOpen(true);
+    }
+  }, [activeMenu, isCreateCourseModalOpen]);
+
   if (loading) {
     return (
       <div className="dashboard-loading">
@@ -419,6 +427,7 @@ export default function Dashboard() {
     { id: 'administradores', label: 'Crear Administradores' },
     { id: 'profesores', label: 'Crear Profesores' },
     { id: 'alumnos', label: 'Crear Alumnos' },
+    { id: 'gestionar-alumnos', label: 'Gestionar Alumnos' },
   ];
 
   const handleMenuClick = (menuId: string) => {
@@ -431,6 +440,7 @@ export default function Dashboard() {
   const programsMenuItems =
     userRole === 'profesor'
       ? [
+          { id: 'crear-cursos', label: 'Crear Cursos' },
           { id: 'grados', label: 'Gestionar Cursos' },
           { id: 'calendario', label: 'Calendario' },
           { id: 'evaluaciones', label: 'Evaluaciones' },
@@ -438,6 +448,7 @@ export default function Dashboard() {
       : userRole === 'estudiante'
       ? []
       : [
+          { id: 'crear-cursos', label: 'Crear Cursos' },
           { id: 'grados', label: 'Gestionar Cursos' },
           { id: 'video-institucional', label: 'Video Institucional' },
         ];
@@ -805,6 +816,20 @@ export default function Dashboard() {
                 />
               )}
             </div>
+          ) : activeMenu === 'crear-cursos' ? (
+            isCreateCourseModalOpen && (
+              <CreateCourseForm 
+                onClose={() => {
+                  setIsCreateCourseModalOpen(false);
+                  setActiveMenu('grados');
+                }}
+                onCourseCreated={() => {
+                  setCoursesRefreshKey(prev => prev + 1);
+                  setIsCreateCourseModalOpen(false);
+                  setActiveMenu('grados');
+                }}
+              />
+            )
           ) : activeMenu === 'grados' && userRole === 'profesor' ? (
             <TeacherProgramsView />
           ) : activeMenu === 'grados' ? (
@@ -859,6 +884,8 @@ export default function Dashboard() {
                 />
               )}
             </div>
+          ) : activeMenu === 'gestionar-alumnos' ? (
+            <StudentsListManager />
           ) : activeMenu === 'gestionar-estudiantes' || activeMenu === 'alumnos' ? (
             <StudentsManager />
           ) : activeMenu === 'reportes-estudiantes' && userRole === 'profesor' ? (

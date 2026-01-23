@@ -22,9 +22,6 @@ export default function AdministratorsList() {
   const [administrators, setAdministrators] = useState<Administrator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddUserForm, setShowAddUserForm] = useState(false);
-  const [addUserEmail, setAddUserEmail] = useState('webgimnasionuevainglaterra@gmail.com');
-  const [addingUser, setAddingUser] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Administrator | null>(null);
 
   const fetchAdministrators = async () => {
@@ -53,41 +50,6 @@ export default function AdministratorsList() {
 
       const admins = result.data || [];
       setAdministrators(admins);
-
-      // Verificar si el super admin existe, si no, agregarlo
-      const superAdminExists = admins.some(
-        (admin: Administrator) => admin.email === 'webgimnasionuevainglaterra@gmail.com'
-      );
-
-      if (!superAdminExists) {
-        // Agregar el super admin automáticamente
-        try {
-          const addResponse = await fetch('/api/admin/add-existing-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: 'webgimnasionuevainglaterra@gmail.com' }),
-          });
-
-          if (addResponse.ok) {
-            // Recargar la lista después de agregar
-            const refreshResponse = await fetch('/api/admin/get-administrators', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (refreshResponse.ok) {
-              const refreshResult = await refreshResponse.json();
-              setAdministrators(refreshResult.data || []);
-            }
-          }
-        } catch (addError) {
-          console.error('Error al agregar super admin automáticamente:', addError);
-        }
-      }
     } catch (err: any) {
       console.error('Error al obtener administradores:', err);
       setError(err.message || 'Error al cargar los administradores');
@@ -111,39 +73,6 @@ export default function AdministratorsList() {
 
   const handleEdit = (admin: Administrator) => {
     setEditingAdmin(admin);
-  };
-
-  const handleAddExistingUser = async () => {
-    if (!addUserEmail) {
-      alert('Por favor ingresa un email');
-      return;
-    }
-
-    setAddingUser(true);
-    try {
-      const response = await fetch('/api/admin/add-existing-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: addUserEmail }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al agregar el usuario');
-      }
-
-      alert('Usuario agregado exitosamente');
-      setShowAddUserForm(false);
-      fetchAdministrators();
-    } catch (err: any) {
-      console.error('Error al agregar usuario:', err);
-      alert(err.message || 'Error al agregar el usuario');
-    } finally {
-      setAddingUser(false);
-    }
   };
 
   const handleDelete = async (id: string, nombre: string, apellido: string) => {
@@ -203,17 +132,6 @@ export default function AdministratorsList() {
       <div className="administrators-list-header">
         <h2 className="list-title">Lista de Administradores</h2>
         <div className="header-actions">
-          {!showAddUserForm && (
-            <button 
-              onClick={() => setShowAddUserForm(true)} 
-              className="add-user-button"
-            >
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Agregar Usuario Existente
-            </button>
-          )}
           <button onClick={fetchAdministrators} className="refresh-button">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -222,43 +140,6 @@ export default function AdministratorsList() {
           </button>
         </div>
       </div>
-
-      {showAddUserForm && (
-        <div className="add-user-form">
-          <div className="add-user-form-content">
-            <h3>Agregar Usuario Existente</h3>
-            <p>Ingresa el email del usuario que ya existe en Auth para agregarlo a la tabla de administradores:</p>
-            <div className="add-user-input-group">
-              <input
-                type="email"
-                value={addUserEmail}
-                onChange={(e) => setAddUserEmail(e.target.value)}
-                placeholder="correo@ejemplo.com"
-                className="add-user-input"
-              />
-              <div className="add-user-buttons">
-                <button
-                  onClick={handleAddExistingUser}
-                  disabled={addingUser}
-                  className="add-user-submit"
-                >
-                  {addingUser ? 'Agregando...' : 'Agregar'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddUserForm(false);
-                    setAddUserEmail('webgimnasionuevainglaterra@gmail.com');
-                  }}
-                  className="add-user-cancel"
-                  disabled={addingUser}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {administrators.length === 0 ? (
         <div className="empty-state">

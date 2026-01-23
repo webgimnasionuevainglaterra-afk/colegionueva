@@ -13,3 +13,4 @@ WHERE tiempo_segundos IS NULL;
 
 
 
+

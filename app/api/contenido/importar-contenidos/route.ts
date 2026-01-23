@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         const titulo = (fila.Título || fila.Titulo || fila.titulo || '').toString().trim();
         const descripcion = (fila.Descripción || fila.Descripcion || fila.descripcion || '').toString().trim();
         const urlVideo = (fila.URL_Video || fila.url_video || fila.URL || fila.url || '').toString().trim();
-        const urlArchivo = (fila.URL_Archivo || fila.url_archivo || fila.Archivo || fila.archivo || '').toString().trim();
+        // URL_Archivo ya no se usa - los archivos se suben directamente desde el subtema
 
         // Validar campos requeridos
         if (!temaNombre || !subtemaNombre || !tipo || !titulo) {
@@ -252,16 +252,15 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Validar que tenga al menos URL de video o archivo según el tipo
+        // Validar que tenga URL de video solo para tipo video
+        // Para tipo 'archivo', los archivos se suben directamente desde el subtema, no desde el Excel
         if (tipo === 'video' && !urlVideo) {
           errores.push(`Fila ${i + 2}: Tipo 'video' requiere URL_Video`);
           continue;
         }
 
-        if (tipo === 'archivo' && !urlArchivo) {
-          errores.push(`Fila ${i + 2}: Tipo 'archivo' requiere URL_Archivo`);
-          continue;
-        }
+        // Para tipo 'archivo' y 'foro', no se requieren URLs en el Excel
+        // Los archivos se suben directamente desde la interfaz del subtema
 
         // Obtener el máximo orden actual para este subtema
         const { data: existingContenido } = await supabaseAdmin
@@ -279,12 +278,11 @@ export async function POST(request: NextRequest) {
 
         if (tipo === 'video') {
           url = urlVideo || null;
-          if (urlArchivo) {
-            // Si hay archivo además de video, guardar como JSON array
-            archivo_url = JSON.stringify([urlArchivo]);
-          }
+          // archivo_url se deja null - los archivos se suben desde el subtema
         } else if (tipo === 'archivo') {
-          archivo_url = urlArchivo || null;
+          // Para tipo 'archivo', no se usa URL_Archivo del Excel
+          // Los archivos se suben directamente desde la interfaz del subtema
+          archivo_url = null;
         } else if (tipo === 'foro') {
           // Para foro, no se requieren URLs
         }

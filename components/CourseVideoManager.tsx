@@ -73,14 +73,35 @@ export default function CourseVideoManager({
 
       const result = await response.json();
 
-      if (response.ok && result.data) {
-        setVideoUrl(result.data.video_url || '');
-        setDescripcion(result.data.descripcion || '');
-      } else if (response.status !== 404) {
-        // Solo mostrar error si no es un 404 (video no existe)
-        throw new Error(result.error || 'Error al cargar el video');
+      if (response.ok) {
+        // Si la respuesta es OK, puede tener data o data: null (cuando no hay video)
+        if (result.data) {
+          setVideoUrl(result.data.video_url || '');
+          setDescripcion(result.data.descripcion || '');
+        }
+        // Si result.data es null, simplemente no cargamos nada (es normal si no hay video aún)
+      } else {
+        // Manejar diferentes códigos de error
+        console.error('Error al obtener video:', {
+          status: response.status,
+          error: result.error,
+          courseId,
+        });
+
+        if (response.status === 404) {
+          // 404 es normal si no hay video aún, no mostrar error
+          return;
+        } else if (response.status === 403) {
+          // 403: No tiene permisos o no es profesor
+          throw new Error(result.error || 'No tienes permisos para ver este video. Asegúrate de ser profesor y tener acceso a este curso.');
+        } else if (response.status === 401) {
+          // 401: No autorizado
+          throw new Error(result.error || 'No estás autorizado para ver este video. Por favor, inicia sesión nuevamente.');
+        } else {
+          // Otros errores (400, 500, etc.)
+          throw new Error(result.error || `Error al cargar el video (código: ${response.status})`);
+        }
       }
-      // Si es 404, simplemente no cargamos nada (es normal si no hay video aún)
     } catch (err: any) {
       console.error('Error al obtener video:', err);
       setError(err.message || 'Error al cargar el video');

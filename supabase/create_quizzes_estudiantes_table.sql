@@ -23,3 +23,4 @@ COMMENT ON TABLE quizzes_estudiantes IS 'Control de activación individual de qu
 COMMENT ON COLUMN quizzes_estudiantes.is_active IS 'Indica si el quiz está activo para este estudiante específico';
 COMMENT ON COLUMN quizzes_estudiantes.activado_por IS 'ID del profesor o administrador que activó/desactivó el quiz para este estudiante';
 
+

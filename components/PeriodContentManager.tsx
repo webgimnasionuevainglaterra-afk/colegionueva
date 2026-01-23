@@ -815,12 +815,38 @@ export default function PeriodContentManager({
           <button
             className="create-subject-btn"
             onClick={() => {
-              // Descargar plantilla
-              window.open('/api/contenido/download-template', '_blank');
+              // Descargar plantilla con el tema seleccionado
+              if (!selectedTema) {
+                alert('Por favor selecciona un tema primero desde la vista de Temas');
+                return;
+              }
+              
+              // Buscar el tema actual en la lista de temas para asegurar que tenemos el nombre correcto
+              const temaSeleccionado = temas.find(t => t.id === selectedTema);
+              
+              if (!temaSeleccionado) {
+                alert('Error: No se pudo encontrar el tema seleccionado. Por favor, recarga la página.');
+                return;
+              }
+              
+              const temaNombre = temaSeleccionado.nombre;
+              const temaId = selectedTema;
+              
+              console.log('📥 Descargando plantilla para tema:', {
+                temaId,
+                temaNombre,
+                periodoId: periodId,
+                subjectName
+              });
+              
+              // Pasar tema_id (el endpoint obtendrá el nombre desde la BD para asegurar que sea correcto)
+              const url = `/api/contenido/download-template?tema_id=${encodeURIComponent(temaId)}&tema=${encodeURIComponent(temaNombre)}`;
+              window.open(url, '_blank');
             }}
             style={{ 
               backgroundColor: '#10b981',
               borderColor: '#10b981',
+              color: 'white',
               flex: 'none',
               padding: '0.75rem 1rem',
               display: 'flex',
@@ -829,10 +855,10 @@ export default function PeriodContentManager({
             }}
             title="Descargar Plantilla Excel"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px', color: 'white' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Descargar Plantilla</span>
+            <span style={{ color: 'white' }}>Descargar Plantilla</span>
           </button>
           <button
             className="create-subject-btn"
@@ -846,6 +872,7 @@ export default function PeriodContentManager({
             style={{ 
               backgroundColor: '#f59e0b',
               borderColor: '#f59e0b',
+              color: 'white',
               flex: 'none',
               padding: '0.75rem 1rem',
               display: 'flex',
@@ -854,10 +881,10 @@ export default function PeriodContentManager({
             }}
             title="Importar desde Excel"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px', color: 'white' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <span>Importar Excel</span>
+            <span style={{ color: 'white' }}>Importar Excel</span>
           </button>
         </div>
       </div>
@@ -1219,17 +1246,38 @@ export default function PeriodContentManager({
           <button
             className="create-subject-btn"
             onClick={() => {
-              // Descargar plantilla con el nombre del tema
+              // Descargar plantilla con el tema seleccionado
+              if (!selectedTema) {
+                alert('Por favor selecciona un tema primero desde la vista de Temas');
+                return;
+              }
+              
+              // Buscar el tema actual en la lista de temas para asegurar que tenemos el nombre correcto
               const temaSeleccionado = temas.find(t => t.id === selectedTema);
-              const temaNombre = temaSeleccionado?.nombre || '';
-              const url = temaNombre 
-                ? `/api/contenido/download-template?tema=${encodeURIComponent(temaNombre)}`
-                : '/api/contenido/download-template';
+              
+              if (!temaSeleccionado) {
+                alert('Error: No se pudo encontrar el tema seleccionado. Por favor, recarga la página.');
+                return;
+              }
+              
+              const temaNombre = temaSeleccionado.nombre;
+              const temaId = selectedTema;
+              
+              console.log('📥 Descargando plantilla para tema (vista contenido):', {
+                temaId,
+                temaNombre,
+                periodoId: periodId,
+                subjectName
+              });
+              
+              // Pasar tema_id (el endpoint obtendrá el nombre desde la BD para asegurar que sea correcto)
+              const url = `/api/contenido/download-template?tema_id=${encodeURIComponent(temaId)}&tema=${encodeURIComponent(temaNombre)}`;
               window.open(url, '_blank');
             }}
             style={{ 
               backgroundColor: '#10b981',
               borderColor: '#10b981',
+              color: 'white',
               flex: 'none',
               padding: '0.75rem 1rem',
               display: 'flex',
@@ -1238,10 +1286,10 @@ export default function PeriodContentManager({
             }}
             title="Descargar Plantilla Excel"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px', color: 'white' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Descargar Plantilla</span>
+            <span style={{ color: 'white' }}>Descargar Plantilla</span>
           </button>
           <button
             className="create-subject-btn"
@@ -1255,6 +1303,7 @@ export default function PeriodContentManager({
             style={{ 
               backgroundColor: '#f59e0b',
               borderColor: '#f59e0b',
+              color: 'white',
               flex: 'none',
               padding: '0.75rem 1rem',
               display: 'flex',
@@ -1263,10 +1312,10 @@ export default function PeriodContentManager({
             }}
             title="Importar desde Excel"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '18px', height: '18px', color: 'white' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <span>Importar Excel</span>
+            <span style={{ color: 'white' }}>Importar Excel</span>
           </button>
         </div>
       </div>
@@ -1570,10 +1619,33 @@ export default function PeriodContentManager({
           periodId={periodId}
           periodName={periodName || ''}
           onClose={() => setIsImportContenidosModalOpen(false)}
-          onContenidosImported={() => {
-            if (selectedSubtema && selectedTema) {
-              fetchSubtemas(selectedTema);
+          onContenidosImported={async () => {
+            // Recargar datos según la vista activa
+            try {
+              // Guardar el subtema seleccionado antes de recargar
+              const subtemaIdAnterior = selectedSubtema;
+              
+              // Siempre recargar temas por si se crearon nuevos durante la importación
+              await fetchTemas();
+              
+              // Si estamos en vista de subtemas o contenido, recargar subtemas
+              if (activeView === 'subtemas' || activeView === 'contenido') {
+                if (selectedTema) {
+                  // Recargar subtemas (esto también recarga contenidoPorSubtema)
+                  await fetchSubtemas(selectedTema);
+                  
+                  // Si estamos en vista de contenido y había un subtema seleccionado, recargar contenido específico
+                  if (activeView === 'contenido' && subtemaIdAnterior) {
+                    // Recargar el contenido del subtema seleccionado
+                    await fetchContenido(subtemaIdAnterior);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error al recargar datos después de importar:', error);
             }
+            
+            // Cerrar el modal después de recargar
             setIsImportContenidosModalOpen(false);
           }}
         />
@@ -2992,7 +3064,7 @@ function ImportContenidosModal({
   periodId: string;
   periodName: string;
   onClose: () => void;
-  onContenidosImported: () => void;
+  onContenidosImported: () => Promise<void> | void;
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -3065,11 +3137,24 @@ function ImportContenidosModal({
 
       setResultado(result);
       if (result.totalCreados > 0) {
-        alert(`Se importaron ${result.totalCreados} contenidos exitosamente${result.totalErrores > 0 ? ` (${result.totalErrores} errores)` : ''}`);
-        onContenidosImported();
+        // Mostrar mensaje de éxito
+        const mensaje = `Se importaron ${result.totalCreados} contenidos exitosamente${result.totalErrores > 0 ? ` (${result.totalErrores} errores)` : ''}`;
+        
+        // Recargar datos y cerrar modal
+        try {
+          await onContenidosImported();
+          // Mostrar alert después de recargar
+          alert(mensaje);
+        } catch (error) {
+          console.error('Error al recargar datos:', error);
+          alert(mensaje + '\n\nNota: Los datos se importaron correctamente, pero puede que necesites refrescar la página para verlos.');
+        }
       } else if (result.totalErrores > 0) {
         // Mostrar errores aunque no se hayan creado contenidos
         console.log('Errores de importación:', result.errores);
+        alert('No se pudieron importar contenidos. Revisa los errores en la consola.');
+      } else {
+        alert('No se importaron contenidos. Verifica que el archivo tenga datos válidos.');
       }
     } catch (err: any) {
       console.error('Error al importar contenidos:', err);
@@ -3093,7 +3178,8 @@ function ImportContenidosModal({
             <label>Archivo Excel (.xlsx) *</label>
             <input type="file" accept=".xlsx,.xls" onChange={handleFileChange} required />
             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-              El archivo debe tener las columnas: Tema, Subtema, Tipo (video/archivo/foro), Título, Descripción (opcional), URL_Video (opcional), URL_Archivo (opcional)
+              El archivo debe tener las columnas: Tema, Subtema, Tipo (video/archivo/foro), Título, Descripción (opcional), URL_Video (solo para tipo video).<br />
+              <strong>Nota:</strong> Para subir imágenes o documentos, use la opción "Agregar Contenido" directamente desde el subtema.
             </p>
             <button
               type="button"

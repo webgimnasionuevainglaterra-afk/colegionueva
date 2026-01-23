@@ -3,7 +3,22 @@
 import { useEffect, useState } from 'react';
 import EditCourseForm from './EditCourseForm';
 import CourseSubjectsManager from './CourseSubjectsManager';
+import CourseRelationsManager from './CourseRelationsManager';
 import '../app/css/courses-list.css';
+
+interface Profesor {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+}
+
+interface Estudiante {
+  id: string;
+  nombre: string;
+  apellido: string;
+  correo_electronico: string;
+}
 
 interface Course {
   id: string;
@@ -11,6 +26,8 @@ interface Course {
   nivel: string;
   created_at: string;
   updated_at: string;
+  profesores?: Profesor[];
+  estudiantes?: Estudiante[];
 }
 
 interface CoursesListProps {
@@ -23,6 +40,7 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [managingSubjects, setManagingSubjects] = useState<Course | null>(null);
+  const [managingRelations, setManagingRelations] = useState<Course | null>(null);
 
   const fetchCourses = async () => {
     try {
@@ -118,6 +136,8 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
             <tr>
               <th>Nombre del Curso</th>
               <th>Nivel</th>
+              <th>Profesores</th>
+              <th>Estudiantes</th>
               <th>Fecha de Creación</th>
               <th>Última Actualización</th>
               <th>Acciones</th>
@@ -126,7 +146,7 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
           <tbody>
             {courses.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty-state">
+                <td colSpan={7} className="empty-state">
                   <div className="empty-state-content">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -150,6 +170,49 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
                     </span>
                   </td>
                   <td>
+                    <div style={{ fontSize: '0.875rem' }}>
+                      {course.profesores && course.profesores.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {course.profesores.slice(0, 2).map((profesor) => (
+                            <span key={profesor.id} style={{ color: '#1f2937' }}>
+                              {profesor.nombre} {profesor.apellido}
+                            </span>
+                          ))}
+                          {course.profesores.length > 2 && (
+                            <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                              +{course.profesores.length - 2} más
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin profesores</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ fontSize: '0.875rem' }}>
+                      {course.estudiantes && course.estudiantes.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <span style={{ color: '#1f2937', fontWeight: 500 }}>
+                            {course.estudiantes.length} estudiante{course.estudiantes.length !== 1 ? 's' : ''}
+                          </span>
+                          {course.estudiantes.slice(0, 2).map((estudiante) => (
+                            <span key={estudiante.id} style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                              {estudiante.nombre} {estudiante.apellido}
+                            </span>
+                          ))}
+                          {course.estudiantes.length > 2 && (
+                            <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                              +{course.estudiantes.length - 2} más
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin estudiantes</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
                     <span className="date-text">{formatDate(course.created_at)}</span>
                   </td>
                   <td>
@@ -157,6 +220,28 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
                   </td>
                   <td>
                     <div className="action-buttons">
+                      <button
+                        className="action-btn"
+                        title="Gestionar profesores y estudiantes"
+                        onClick={() => {
+                          setManagingRelations(course);
+                        }}
+                        style={{
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.5rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </button>
                       <button
                         className="action-btn subjects-btn"
                         title="Gestionar materias"
@@ -234,6 +319,17 @@ export default function CoursesList({ refreshKey = 0 }: CoursesListProps) {
           courseId={managingSubjects.id}
           courseName={managingSubjects.nombre}
           onClose={() => setManagingSubjects(null)}
+        />
+      )}
+
+      {managingRelations && (
+        <CourseRelationsManager
+          course={managingRelations}
+          onClose={() => setManagingRelations(null)}
+          onRelationsUpdated={() => {
+            setManagingRelations(null);
+            fetchCourses();
+          }}
         />
       )}
     </div>

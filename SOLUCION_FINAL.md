@@ -63,3 +63,4 @@ El servidor debe iniciarse desde tu terminal local, NO desde Cursor, para evitar
 
 
 
+

@@ -1,15 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import '../app/css/create-admin.css';
-
-interface Course {
-  id: string;
-  nombre: string;
-  nivel: string;
-}
 
 interface CreateTeacherFormProps {
   onClose: () => void;
@@ -25,57 +19,11 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
     numero_celular: '',
     indicativo_pais: '+57',
     foto: null as File | null,
-    cursos_ids: [] as string[],
   });
-  const [courses, setCourses] = useState<Course[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    // Cargar cursos disponibles
-    const fetchCourses = async () => {
-      try {
-        const response = await fetch('/api/courses/get-courses-for-select');
-        if (response.ok) {
-          const result = await response.json();
-          const coursesData = result.data || [];
-          
-          // Asegurar ordenamiento adicional en el cliente (por si acaso)
-          const sortedCourses = [...coursesData].sort((a, b) => {
-            const getGradoNumber = (nombre: string): number => {
-              const match = nombre.match(/\b(\d+)\b/);
-              return match ? parseInt(match[1], 10) : 999;
-            };
-            
-            const gradoA = getGradoNumber(a.nombre);
-            const gradoB = getGradoNumber(b.nombre);
-            
-            if (gradoA !== gradoB) {
-              return gradoA - gradoB;
-            }
-            
-            const nivelOrder: { [key: string]: number } = { 
-              'Primaria': 1, 
-              'Bachillerato': 2, 
-              'Técnico': 3, 
-              'Profesional': 4 
-            };
-            const nivelA = nivelOrder[a.nivel] || 99;
-            const nivelB = nivelOrder[b.nivel] || 99;
-            
-            return nivelA - nivelB;
-          });
-          
-          setCourses(sortedCourses);
-        }
-      } catch (err) {
-        console.error('Error al cargar cursos:', err);
-      }
-    };
-    fetchCourses();
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -100,15 +48,6 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleCourseToggle = (cursoId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      cursos_ids: prev.cursos_ids.includes(cursoId)
-        ? prev.cursos_ids.filter(id => id !== cursoId)
-        : [...prev.cursos_ids, cursoId],
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,7 +99,6 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
           foto_url: fotoUrl,
           numero_celular: formData.numero_celular || null,
           indicativo_pais: formData.indicativo_pais,
-          cursos_ids: formData.cursos_ids,
         }),
       });
 
@@ -192,7 +130,6 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
         numero_celular: '',
         indicativo_pais: '+57',
         foto: null,
-        cursos_ids: [],
       });
       setPreview(null);
 
@@ -376,27 +313,6 @@ export default function CreateTeacherForm({ onClose, onTeacherCreated }: CreateT
                 className="form-input"
                 placeholder="Mínimo 6 caracteres"
               />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Cursos Asignados</label>
-              <div className="courses-checkbox-list">
-                {courses.length === 0 ? (
-                  <p className="no-courses">No hay cursos disponibles. Crea cursos primero.</p>
-                ) : (
-                  courses.map((course) => (
-                    <label key={course.id} className="course-checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={formData.cursos_ids.includes(course.id)}
-                        onChange={() => handleCourseToggle(course.id)}
-                        disabled={loading}
-                      />
-                      <span>{course.nombre} ({course.nivel})</span>
-                    </label>
-                  ))
-                )}
-              </div>
             </div>
 
             <div className="form-actions">
