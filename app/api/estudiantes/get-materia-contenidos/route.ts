@@ -124,9 +124,92 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Eliminar duplicados de contenido basándose en el ID
+    // Obtener todos los subtemas de los temas para verificar quizzes
+    const subtemaIds: string[] = [];
+    (data || []).forEach((periodo: any) => {
+      periodo.temas?.forEach((tema: any) => {
+        tema.subtemas?.forEach((subtema: any) => {
+          subtemaIds.push(subtema.id);
+        });
+      });
+    });
+
+    // Obtener todos los quizzes de estos subtemas
+    let quizzesPorSubtema: Record<string, string[]> = {};
+    if (subtemaIds.length > 0) {
+      const { data: quizzes } = await supabaseAdmin
+        .from('quizzes')
+        .select('id, subtema_id')
+        .in('subtema_id', subtemaIds);
+
+      quizzes?.forEach((quiz: any) => {
+        if (!quizzesPorSubtema[quiz.subtema_id]) {
+          quizzesPorSubtema[quiz.subtema_id] = [];
+        }
+        quizzesPorSubtema[quiz.subtema_id].push(quiz.id);
+      });
+    }
+
+    // Obtener todos los intentos completados del estudiante
+    const todosLosQuizIds = Object.values(quizzesPorSubtema).flat();
+    let intentosCompletados: Set<string> = new Set();
+    
+    if (todosLosQuizIds.length > 0) {
+      const { data: intentos } = await supabaseAdmin
+        .from('intentos_quiz')
+        .select('quiz_id')
+        .eq('estudiante_id', estudiante.id)
+        .eq('completado', true)
+        .in('quiz_id', todosLosQuizIds);
+
+      intentos?.forEach((intento: any) => {
+        intentosCompletados.add(intento.quiz_id);
+      });
+    }
+
+    // Eliminar duplicados de contenido basándose en el ID y agregar información de desbloqueo
     const periodosSinDuplicados = (data || []).map((periodo: any) => {
-      const temasSinDuplicados = (periodo.temas || []).map((tema: any) => {
+      const temasDelPeriodo = periodo.temas || [];
+      
+      // Determinar qué temas están completados (todos sus quizzes completados)
+      const temasCompletados: Record<string, boolean> = {};
+      temasDelPeriodo.forEach((tema: any) => {
+        let todosLosQuizzesCompletados = true;
+        let tieneQuizzes = false;
+        
+        tema.subtemas?.forEach((subtema: any) => {
+          const quizIds = quizzesPorSubtema[subtema.id] || [];
+          if (quizIds.length > 0) {
+            tieneQuizzes = true;
+            const todosCompletados = quizIds.every((quizId: string) => 
+              intentosCompletados.has(quizId)
+            );
+            if (!todosCompletados) {
+              todosLosQuizzesCompletados = false;
+            }
+          }
+        });
+        
+        // Si no tiene quizzes, se considera completado
+        temasCompletados[tema.id] = !tieneQuizzes || todosLosQuizzesCompletados;
+      });
+
+      // Determinar si todos los temas del periodo están completados
+      const todosLosTemasCompletados = temasDelPeriodo.every((tema: any) => 
+        temasCompletados[tema.id] === true
+      );
+
+      const temasSinDuplicados = (periodo.temas || []).map((tema: any, index: number) => {
+        // Determinar si el tema está desbloqueado
+        // El primer tema siempre está desbloqueado
+        // Los siguientes temas están desbloqueados si el tema anterior está completado
+        let desbloqueado = false;
+        if (index === 0) {
+          desbloqueado = true;
+        } else {
+          const temaAnterior = temasDelPeriodo[index - 1];
+          desbloqueado = temasCompletados[temaAnterior.id] === true;
+        }
         const subtemasSinDuplicados = (tema.subtemas || []).map((subtema: any) => {
           // Eliminar duplicados de contenido por ID
           const contenidoUnico = (subtema.contenido || []).reduce((acc: any[], contenido: any) => {
@@ -158,6 +241,8 @@ export async function GET(request: NextRequest) {
         return {
           ...tema,
           subtemas: subtemasSinDuplicados,
+          desbloqueado: desbloqueado,
+          completado: temasCompletados[tema.id] === true,
         };
       });
       
@@ -167,6 +252,7 @@ export async function GET(request: NextRequest) {
       return {
         ...periodo,
         temas: temasSinDuplicados,
+        evaluacion_desbloqueada: todosLosTemasCompletados,
       };
     });
 

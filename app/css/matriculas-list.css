@@ -1,0 +1,227 @@
+/* Matrículas List Styles */
+.matriculas-list-container {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.matriculas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.matriculas-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.filtros-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filtro-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filtro-select:hover {
+  border-color: #3b82f6;
+}
+
+.filtro-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+}
+
+.loading-container,
+.error-container {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.error-container {
+  color: #ef4444;
+}
+
+.retry-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.retry-button:hover {
+  background: #2563eb;
+}
+
+.matriculas-table-container {
+  overflow-x: auto;
+}
+
+.matriculas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.matriculas-table thead {
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.matriculas-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.matriculas-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.2s;
+}
+
+.matriculas-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.matriculas-table td {
+  padding: 1rem;
+  color: #1f2937;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.acciones-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-accion {
+  padding: 0.375rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 2.5rem;
+}
+
+.btn-accion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-aprobar {
+  background: #10b981;
+  color: white;
+}
+
+.btn-aprobar:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-rechazar {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-rechazar:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-completar {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-completar:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+@media (max-width: 768px) {
+  .matriculas-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .matriculas-table {
+    font-size: 0.75rem;
+  }
+
+  .matriculas-table th,
+  .matriculas-table td {
+    padding: 0.5rem;
+  }
+
+  .acciones-buttons {
+    flex-direction: column;
+  }
+}
+

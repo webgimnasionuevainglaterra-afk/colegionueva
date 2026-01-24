@@ -1,0 +1,199 @@
+/* Matrículas Presenciales Page Styles */
+.matriculas-presenciales-main {
+  min-height: calc(100vh - 200px);
+  background: #f8f9fa;
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 30px 30px;
+  padding: 3rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.matriculas-container {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.matriculas-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #2563eb;
+}
+
+.matriculas-title {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.matriculas-subtitle {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.matriculas-form-container {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.error-message {
+  padding: 1rem;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.success-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  color: #065f46;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.success-message svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.success-message strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
+.matriculas-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.form-input,
+.form-select {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 1rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  color: #1f2937;
+  background: white;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-input:disabled,
+.form-select:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.form-help {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.form-actions {
+  margin-top: 1rem;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: var(--font-nunito-sans), sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.submit-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .matriculas-presenciales-main {
+    padding: 2rem 1rem;
+  }
+
+  .matriculas-title {
+    font-size: 2rem;
+  }
+
+  .matriculas-form-container {
+    padding: 1.5rem;
+  }
+}
+

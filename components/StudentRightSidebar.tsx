@@ -602,93 +602,101 @@ export default function StudentRightSidebar({
                           Aún no hay temas configurados en este periodo.
                         </p>
                       )}
-                      {periodo.temas?.map((tema) => (
-                        <div
-                          key={tema.id}
-                          style={{
-                            marginBottom: '0.4rem',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              // Prevenir cualquier propagación del evento
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.nativeEvent.stopImmediatePropagation();
-                              
-                              console.log('🖱️ ========== CLICK EN TEMA ==========');
-                              console.log('🖱️ Click en tema:', tema.nombre);
-                              console.log('🖱️ Tema completo:', tema);
-                              console.log('🖱️ Tema ID:', tema.id);
-                              console.log('🖱️ Periodo:', periodo.nombre);
-                              console.log('🖱️ onTemaSelect existe?', !!onTemaSelect);
-                              console.log('🖱️ onTemaSelect tipo:', typeof onTemaSelect);
-                              
-                              if (!onTemaSelect) {
-                                console.error('❌ onTemaSelect no está definido - el callback no se está pasando');
-                                return;
-                              }
-                              
-                              if (!tema || !tema.id) {
-                                console.error('❌ El tema no tiene la estructura correcta:', tema);
-                                return;
-                              }
-                              
-                              console.log('✅ Llamando onTemaSelect con:', {
-                                temaId: tema.id,
-                                temaNombre: tema.nombre,
-                                periodo: periodo.nombre
-                              });
-                              
-                              try {
-                                // IMPORTANTE: Crear una copia limpia del tema para asegurar que solo contiene este tema específico
-                                // NO incluir otros temas del periodo
-                                const temaSeleccionado = {
-                                  ...tema,
-                                  // Asegurar que solo tenemos los subtemas de este tema, no de otros temas
-                                  subtemas: tema.subtemas ? [...tema.subtemas] : []
-                                };
-                                
-                                console.log('✅ Tema seleccionado (limpio):', {
-                                  id: temaSeleccionado.id,
-                                  nombre: temaSeleccionado.nombre,
-                                  subtemasCount: temaSeleccionado.subtemas?.length || 0
-                                });
-                                
-                                // Llamar al callback de forma síncrona con el tema limpio
-                                onTemaSelect(temaSeleccionado, periodo.nombre);
-                                console.log('✅ onTemaSelect llamado exitosamente con tema:', temaSeleccionado.nombre);
-                              } catch (error) {
-                                console.error('❌ Error al llamar onTemaSelect:', error);
-                              }
-                            }}
+                      {periodo.temas?.map((tema) => {
+                        const desbloqueado = tema.desbloqueado !== false; // Por defecto true si no está definido
+                        const completado = tema.completado === true;
+                        
+                        return (
+                          <div
+                            key={tema.id}
                             style={{
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              color: '#111827',
-                              marginBottom: '0.15rem',
-                              background: 'transparent',
-                              border: '1px solid transparent',
-                              borderRadius: '6px',
-                              padding: '0.4rem 0.6rem',
-                              cursor: 'pointer',
-                              width: '100%',
-                              textAlign: 'left',
-                              transition: 'all 0.2s',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#f3f4f6';
-                              e.currentTarget.style.borderColor = '#e5e7eb';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.borderColor = 'transparent';
+                              marginBottom: '0.4rem',
+                              opacity: desbloqueado ? 1 : 0.5,
                             }}
                           >
-                            {tema.nombre}
-                          </button>
-                          {tema.subtemas?.map((subtema) => (
+                            <button
+                              type="button"
+                              disabled={!desbloqueado}
+                              onClick={(e) => {
+                                if (!desbloqueado) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  return;
+                                }
+                                
+                                // Prevenir cualquier propagación del evento
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.nativeEvent.stopImmediatePropagation();
+                                
+                                if (!onTemaSelect) {
+                                  return;
+                                }
+                                
+                                if (!tema || !tema.id) {
+                                  return;
+                                }
+                                
+                                try {
+                                  const temaSeleccionado = {
+                                    ...tema,
+                                    subtemas: tema.subtemas ? [...tema.subtemas] : []
+                                  };
+                                  
+                                  onTemaSelect(temaSeleccionado, periodo.nombre);
+                                } catch (error) {
+                                  console.error('Error al llamar onTemaSelect:', error);
+                                }
+                              }}
+                              style={{
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                color: desbloqueado ? '#111827' : '#9ca3af',
+                                marginBottom: '0.15rem',
+                                background: desbloqueado ? 'transparent' : '#f3f4f6',
+                                border: desbloqueado ? '1px solid transparent' : '1px solid #e5e7eb',
+                                borderRadius: '6px',
+                                padding: '0.4rem 0.6rem',
+                                cursor: desbloqueado ? 'pointer' : 'not-allowed',
+                                width: '100%',
+                                textAlign: 'left',
+                                transition: 'all 0.2s',
+                                position: 'relative',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (desbloqueado) {
+                                  e.currentTarget.style.background = '#f3f4f6';
+                                  e.currentTarget.style.borderColor = '#e5e7eb';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (desbloqueado) {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.borderColor = 'transparent';
+                                }
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {completado && (
+                                  <span style={{ color: '#10b981', fontSize: '0.9rem' }}>✓</span>
+                                )}
+                                {!desbloqueado && (
+                                  <span style={{ color: '#9ca3af', fontSize: '0.9rem' }}>🔒</span>
+                                )}
+                                <span>{tema.nombre}</span>
+                                {!desbloqueado && (
+                                  <span style={{ 
+                                    fontSize: '0.7rem', 
+                                    color: '#9ca3af',
+                                    marginLeft: 'auto',
+                                    fontStyle: 'italic'
+                                  }}>
+                                    Completa el tema anterior
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                            {tema.subtemas?.map((subtema) => (
                             <div
                               key={subtema.id}
                               style={{
@@ -803,9 +811,10 @@ export default function StudentRightSidebar({
                                 ))}
                               </ul>
                             </div>
-                          ))}
-                        </div>
-                      ))}
+                            ))}
+                          </div>
+                        );
+                      })}
 
                       {/* Evaluaciones del período */}
                       {evaluacionesPorPeriodo[periodo.id] && evaluacionesPorPeriodo[periodo.id].length > 0 && (
@@ -814,17 +823,21 @@ export default function StudentRightSidebar({
                             📝 Evaluaciones del Período:
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {evaluacionesPorPeriodo[periodo.id].map((evaluacion) => (
+                            {evaluacionesPorPeriodo[periodo.id].map((evaluacion) => {
+                              const evaluacionDesbloqueada = periodo.evaluacion_desbloqueada !== false;
+                              
+                              return (
                               <div
                                 key={evaluacion.id}
                                 style={{
                                   padding: '0.75rem',
                                   marginBottom: '0.5rem',
-                                  background: '#f0fdf4',
+                                  background: evaluacionDesbloqueada ? '#f0fdf4' : '#f9fafb',
                                   borderRadius: '6px',
-                                  border: '1px solid #bbf7d0',
+                                  border: evaluacionDesbloqueada ? '1px solid #bbf7d0' : '1px solid #e5e7eb',
                                   fontSize: '0.8rem',
-                                  color: '#1f2937',
+                                  color: evaluacionDesbloqueada ? '#1f2937' : '#9ca3af',
+                                  opacity: evaluacionDesbloqueada ? 1 : 0.6,
                                 }}
                               >
                                 <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#166534' }}>
@@ -839,7 +852,26 @@ export default function StudentRightSidebar({
                                   <div>Inicio: {new Date(evaluacion.fecha_inicio).toLocaleDateString()}</div>
                                   <div>Fin: {new Date(evaluacion.fecha_fin).toLocaleDateString()}</div>
                                 </div>
+                                {!evaluacionDesbloqueada && (
+                                  <div style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: '#9ca3af',
+                                    fontStyle: 'italic',
+                                    marginTop: '0.5rem',
+                                    padding: '0.5rem',
+                                    background: '#f3f4f6',
+                                    borderRadius: '4px',
+                                  }}>
+                                    🔒 Completa todos los temas del período para desbloquear esta evaluación
+                                  </div>
+                                )}
+                                
                                 {(() => {
+                                  // Si la evaluación no está desbloqueada, no mostrar botón
+                                  if (!evaluacionDesbloqueada) {
+                                    return null;
+                                  }
+                                  
                                   // Si la evaluación no está activa, no mostrar botón
                                   if (evaluacion.is_active === false) {
                                     return null;
@@ -954,7 +986,8 @@ export default function StudentRightSidebar({
                                   );
                                 })()}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

@@ -1,0 +1,369 @@
+/* Academics Page Styles */
+.academics-main {
+  min-height: calc(100vh - 200px);
+  background: #f8f9fa;
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 30px 30px;
+  padding: 4rem 2rem;
+}
+
+.academics-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero Section */
+.academics-hero {
+  text-align: center;
+  margin-bottom: 4rem;
+  padding: 2rem 0;
+}
+
+.academics-title {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 3rem;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.academics-subtitle {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 1.25rem;
+  color: #6b7280;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Nivel Section */
+.nivel-section {
+  margin-bottom: 4rem;
+}
+
+.nivel-header {
+  border-radius: 16px 16px 0 0;
+  padding: 2rem;
+  margin-bottom: 0;
+}
+
+.nivel-header-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nivel-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.nivel-icon {
+  font-size: 2.5rem;
+}
+
+.nivel-title-wrapper {
+  flex: 1;
+}
+
+.nivel-title {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 2rem;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.nivel-count {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.nivel-content {
+  background: white;
+  border-radius: 0 0 16px 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Cursos Grid */
+.cursos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.curso-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.curso-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  border-color: #9333ea;
+}
+
+.curso-card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.curso-nombre {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #1f2937;
+  margin: 0;
+}
+
+.curso-card-body {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.curso-descripcion {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #6b7280;
+  flex: 1;
+}
+
+.curso-button {
+  display: inline-block;
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(to right, rgb(168, 85, 247), rgb(236, 72, 153));
+  color: white;
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+}
+
+.curso-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+/* Coming Soon Card */
+.coming-soon-card {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.05));
+  border-radius: 12px;
+  border: 2px dashed #10b981;
+}
+
+.coming-soon-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  display: block;
+}
+
+.coming-soon-title {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.coming-soon-description {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 1rem;
+  color: #6b7280;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Empty Courses */
+.empty-courses {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #6b7280;
+}
+
+/* Loading and Error States */
+.loading-container,
+.error-container {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.error-container {
+  color: #ef4444;
+}
+
+.retry-button {
+  margin-top: 1rem;
+  padding: 0.75rem 2rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.2s;
+  font-family: var(--font-nunito-sans), sans-serif;
+}
+
+.retry-button:hover {
+  background: #2563eb;
+}
+
+/* CTA Section */
+.academics-cta {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  margin-top: 4rem;
+}
+
+.cta-title {
+  font-family: var(--font-bitter), serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.cta-description {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-button {
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.cta-button-primary {
+  background: linear-gradient(to right, rgb(168, 85, 247), rgb(236, 72, 153));
+  color: white;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+.cta-button-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5);
+}
+
+.cta-button-secondary {
+  background: white;
+  color: #9333ea;
+  border: 2px solid #9333ea;
+}
+
+.cta-button-secondary:hover {
+  background: #9333ea;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .academics-main {
+    padding: 2rem 1rem;
+  }
+
+  .academics-title {
+    font-size: 2rem;
+  }
+
+  .academics-subtitle {
+    font-size: 1rem;
+  }
+
+  .nivel-header {
+    padding: 1.5rem;
+  }
+
+  .nivel-header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .nivel-title {
+    font-size: 1.5rem;
+  }
+
+  .nivel-content {
+    padding: 1.5rem;
+  }
+
+  .cursos-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .coming-soon-card {
+    padding: 3rem 1.5rem;
+  }
+
+  .coming-soon-icon {
+    font-size: 3rem;
+  }
+
+  .coming-soon-title {
+    font-size: 1.5rem;
+  }
+
+  .cta-title {
+    font-size: 2rem;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cta-button {
+    width: 100%;
+    text-align: center;
+  }
+}
+

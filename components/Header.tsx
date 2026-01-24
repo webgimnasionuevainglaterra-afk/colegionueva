@@ -89,9 +89,9 @@ export default function Header() {
           </div>
           <div className="navbar-right">
             <ul className="nav-links">
+              <li><Link href="/">{t('header.home')}</Link></li>
               <li><Link href="/about">{t('header.whoWeAre')}</Link></li>
               <li><Link href="/academics">{t('header.academicOffer')}</Link></li>
-              <li><Link href="/admissions">{t('header.admissions')}</Link></li>
               <li><Link href="/community">{t('header.community')}</Link></li>
             </ul>
             <div className="language-selector">
@@ -142,9 +142,9 @@ export default function Header() {
               </button>
             </div>
             <ul className="mobile-nav-links">
+              <li><Link href="/" onClick={() => setIsMobileMenuOpen(false)}>{t('header.home')}</Link></li>
               <li><Link href="/about" onClick={() => setIsMobileMenuOpen(false)}>{t('header.whoWeAre')}</Link></li>
               <li><Link href="/academics" onClick={() => setIsMobileMenuOpen(false)}>{t('header.academicOffer')}</Link></li>
-              <li><Link href="/admissions" onClick={() => setIsMobileMenuOpen(false)}>{t('header.admissions')}</Link></li>
               <li><Link href="/community" onClick={() => setIsMobileMenuOpen(false)}>{t('header.community')}</Link></li>
             </ul>
             <div className="mobile-menu-actions">

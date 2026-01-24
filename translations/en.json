@@ -1,8 +1,9 @@
 {
   "header": {
-    "phone": "Phone: +1 234 567 890",
-    "email": "Email: info@nuevainglaterra.com",
-    "address": "Main Ave. 123, City, Country",
+    "phone": "Phone: 320 254 9534",
+    "email": "Email: colegiogimnasionuevainglaterra@gmail.com",
+    "address": "Cl. 30 #22-102, Cañaveral, Floridablanca",
+    "home": "Home",
     "whoWeAre": "About Us",
     "academicOffer": "Academic Offer",
     "admissions": "Admissions",
@@ -56,6 +57,48 @@
     "signIn": "Sign In",
     "noAccount": "Don't have an account?",
     "registerHere": "Register here"
+  },
+  "about": {
+    "title": "About Us",
+    "subtitle": "Learn more about our institution and our commitment to education",
+    "missionTitle": "Our Mission",
+    "missionDescription": "We are an educational institution committed to the integral formation of our students, providing quality education that combines academic excellence with solid human values. Our goal is to prepare students to face future challenges with confidence and competence.",
+    "visionTitle": "Our Vision",
+    "visionDescription": "To be recognized as a leading educational institution, innovative and committed to developing skills that allow our students to excel in a globalized and constantly evolving world.",
+    "valuesTitle": "Our Values",
+    "value1Title": "Excellence",
+    "value1Description": "We seek excellence in all aspects of education, from academic quality to personal development.",
+    "value2Title": "Integrity",
+    "value2Description": "We promote ethical and moral values that form responsible citizens committed to society.",
+    "value3Title": "Innovation",
+    "value3Description": "We incorporate modern technologies and methodologies to stay at the forefront of education.",
+    "value4Title": "Commitment",
+    "value4Description": "We are committed to the success of each student and their integral development as a person.",
+    "ctaTitle": "Ready to get started?",
+    "ctaDescription": "Join our educational community and start your path to success",
+    "ctaButton1": "Presential Enrollment",
+    "ctaButton2": "Virtual Classroom"
+  },
+  "academics": {
+    "title": "Academic Offer",
+    "subtitle": "Discover our educational programs designed for your growth and development",
+    "primary": "Primary",
+    "highSchool": "High School",
+    "technical": "Technical",
+    "comingSoon": "Coming Soon",
+    "comingSoonDescription": "We are working on our technical programs offer. More information will be available soon.",
+    "courseDescription": "Educational program designed to develop fundamental skills and knowledge.",
+    "enrollNow": "Enroll Now",
+    "noCourses": "No courses available at this time.",
+    "ctaTitle": "Interested in our programs?",
+    "ctaDescription": "Contact us for more information or start your enrollment process",
+    "ctaButton1": "Presential Enrollment",
+    "ctaButton2": "Learn More"
+  },
+  "community": {
+    "title": "Community Gallery",
+    "subtitle": "Discover the special moments of our educational community",
+    "message": "Explore our image gallery and learn about the activities, events and special moments we share together at our institution."
   }
 }
 

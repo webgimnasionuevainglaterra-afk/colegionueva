@@ -1,8 +1,9 @@
 {
   "header": {
-    "phone": "Teléfono: +1 234 567 890",
-    "email": "Email: info@nuevainglaterra.com",
-    "address": "Av. Principal 123, Ciudad, País",
+    "phone": "Teléfono: 320 254 9534",
+    "email": "Email: colegiogimnasionuevainglaterra@gmail.com",
+    "address": "Cl. 30 #22-102, Cañaveral, Floridablanca",
+    "home": "Inicio",
     "whoWeAre": "Quiénes Somos",
     "academicOffer": "Oferta Académica",
     "admissions": "Admisiones",
@@ -56,6 +57,48 @@
     "signIn": "Iniciar Sesión",
     "noAccount": "¿No tienes una cuenta?",
     "registerHere": "Regístrate aquí"
+  },
+  "about": {
+    "title": "Quiénes Somos",
+    "subtitle": "Conoce más sobre nuestra institución y nuestro compromiso con la educación",
+    "missionTitle": "Nuestra Misión",
+    "missionDescription": "Somos una institución educativa comprometida con la formación integral de nuestros estudiantes, brindando una educación de calidad que combine la excelencia académica con valores humanos sólidos. Nuestro objetivo es preparar a los estudiantes para enfrentar los desafíos del futuro con confianza y competencia.",
+    "visionTitle": "Nuestra Visión",
+    "visionDescription": "Ser reconocidos como una institución líder en educación, innovadora y comprometida con el desarrollo de habilidades que permitan a nuestros estudiantes destacar en un mundo globalizado y en constante evolución.",
+    "valuesTitle": "Nuestros Valores",
+    "value1Title": "Excelencia",
+    "value1Description": "Buscamos la excelencia en todos los aspectos de la educación, desde la calidad académica hasta el desarrollo personal.",
+    "value2Title": "Integridad",
+    "value2Description": "Promovemos valores éticos y morales que formen ciudadanos responsables y comprometidos con la sociedad.",
+    "value3Title": "Innovación",
+    "value3Description": "Incorporamos tecnologías y metodologías modernas para mantenernos a la vanguardia de la educación.",
+    "value4Title": "Compromiso",
+    "value4Description": "Estamos comprometidos con el éxito de cada estudiante y su desarrollo integral como persona.",
+    "ctaTitle": "¿Listo para comenzar?",
+    "ctaDescription": "Únete a nuestra comunidad educativa y comienza tu camino hacia el éxito",
+    "ctaButton1": "Matrículas Presenciales",
+    "ctaButton2": "Aula Virtual"
+  },
+  "academics": {
+    "title": "Oferta Académica",
+    "subtitle": "Descubre nuestros programas educativos diseñados para tu crecimiento y desarrollo",
+    "primary": "Primaria",
+    "highSchool": "Bachillerato",
+    "technical": "Técnicos",
+    "comingSoon": "Próximamente",
+    "comingSoonDescription": "Estamos trabajando en nuestra oferta de programas técnicos. Muy pronto tendremos más información disponible.",
+    "courseDescription": "Programa educativo diseñado para desarrollar habilidades y conocimientos fundamentales.",
+    "enrollNow": "Matricularme",
+    "noCourses": "No hay cursos disponibles en este momento.",
+    "ctaTitle": "¿Interesado en nuestros programas?",
+    "ctaDescription": "Contáctanos para más información o inicia tu proceso de matrícula",
+    "ctaButton1": "Matrículas Presenciales",
+    "ctaButton2": "Conoce Más"
+  },
+  "community": {
+    "title": "Galería de la Comunidad",
+    "subtitle": "Descubre los momentos especiales de nuestra comunidad educativa",
+    "message": "Explora nuestra galería de imágenes y conoce las actividades, eventos y momentos especiales que vivimos juntos en nuestra institución."
   }
 }
 
