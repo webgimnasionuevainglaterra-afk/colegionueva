@@ -1641,7 +1641,21 @@ export default function Dashboard() {
               margin: 0,
               fontWeight: 500,
             }}>
-              © {new Date().getFullYear()} Colegio Nueva Generación. Todos los derechos reservados.
+              © {new Date().getFullYear()} Nueva Inglaterra. Creada por{' '}
+              <a 
+                href="https://www.iddodevs.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ 
+                  color: 'inherit', 
+                  textDecoration: 'underline',
+                  transition: 'opacity 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              >
+                Iddodevs
+              </a>
             </p>
           </div>
         </footer>

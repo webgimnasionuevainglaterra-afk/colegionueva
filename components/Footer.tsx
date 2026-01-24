@@ -59,7 +59,15 @@ export default function Footer() {
         <div className="footer-container">
           <div className="footer-bottom-content">
             <p className="footer-copyright">
-              {t('footer.copyright')}
+              © 2026 Nueva Inglaterra. Creada por{' '}
+              <a 
+                href="https://www.iddodevs.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="footer-iddodevs-link"
+              >
+                Iddodevs
+              </a>
             </p>
             <div className="footer-legal">
               <Link href="/privacidad">{t('footer.privacy')}</Link>

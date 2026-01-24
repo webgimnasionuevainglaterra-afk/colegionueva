@@ -139,6 +139,17 @@
   margin: 0;
 }
 
+.footer-iddodevs-link {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: underline;
+  transition: color 0.3s ease;
+}
+
+.footer-iddodevs-link:hover {
+  color: white;
+  text-decoration: underline;
+}
+
 .footer-legal {
   display: flex;
   gap: 2rem;

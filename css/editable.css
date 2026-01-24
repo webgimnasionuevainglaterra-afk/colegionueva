@@ -535,15 +535,14 @@
   right: 20px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 50px;
-  font-family: var(--font-nunito-sans), sans-serif;
-  font-weight: 600;
-  font-size: 0.9375rem;
+  border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
@@ -561,8 +560,9 @@
 }
 
 .edit-mode-toggle svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 /* Editable Text */
@@ -884,14 +884,15 @@
 /* Responsive */
 @media (max-width: 768px) {
   .edit-mode-toggle {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
+    width: 48px;
+    height: 48px;
     bottom: 15px;
     right: 15px;
   }
 
-  .edit-mode-toggle span {
-    display: none;
+  .edit-mode-toggle svg {
+    width: 20px;
+    height: 20px;
   }
 
   .lock-modal-content,
