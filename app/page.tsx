@@ -4,6 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import '../css/home.css';
 import { useLanguage } from '@/contexts/LanguageContext';
+import EditableText from '@/components/EditableText';
+import EditableImage from '@/components/EditableImage';
+import EditableVideo from '@/components/EditableVideo';
+import EditableAvatar from '@/components/EditableAvatar';
 
 export default function Home() {
   const { t } = useLanguage();
@@ -15,10 +19,12 @@ export default function Home() {
           <div className="card card-presencial">
             <div className="card-overlay"></div>
             <div className="card-body">
-              <h2 className="card-title">{t('home.presentialEnrollment')}</h2>
-              <p className="card-description">
+              <EditableText contentKey="card-presencial-title" tag="h2" className="card-title">
+                {t('home.presentialEnrollment')}
+              </EditableText>
+              <EditableText contentKey="card-presencial-description" tag="p" className="card-description">
                 {t('home.presentialDescription')}
-              </p>
+              </EditableText>
               <Link href="/matriculas-presenciales" className="card-button">
                 {t('home.seeMore')}
               </Link>
@@ -29,10 +35,12 @@ export default function Home() {
           <div className="card card-virtual">
             <div className="card-overlay"></div>
             <div className="card-body">
-              <h2 className="card-title">{t('home.virtualClassroom')}</h2>
-              <p className="card-description">
+              <EditableText contentKey="card-virtual-title" tag="h2" className="card-title">
+                {t('home.virtualClassroom')}
+              </EditableText>
+              <EditableText contentKey="card-virtual-description" tag="p" className="card-description">
                 {t('home.virtualDescription')}
-              </p>
+              </EditableText>
               <Link href="/aula-virtual" className="card-button">
                 {t('home.seeCourses')}
               </Link>
@@ -42,12 +50,13 @@ export default function Home() {
         
         {/* Banner */}
         <div className="banner-container">
-          <Image
+          <EditableImage
             src="/images/banner.jpg"
             alt="Banner"
             width={1200}
             height={400}
             className="banner-image"
+            contentKey="banner-image"
             priority
             unoptimized
           />
@@ -57,12 +66,18 @@ export default function Home() {
         <div className="video-section">
           <div className="video-content">
             <div className="video-text">
-              <span className="video-badge">{t('home.digitalTransformation')}</span>
-              <h2 className="video-title">{t('home.transformYourFuture')}</h2>
-              <h3 className="video-subtitle">{t('home.transformSubtitle')}</h3>
-              <p className="video-description">
+              <EditableText contentKey="video-badge" tag="span" className="video-badge">
+                {t('home.digitalTransformation')}
+              </EditableText>
+              <EditableText contentKey="video-title" tag="h2" className="video-title">
+                {t('home.transformYourFuture')}
+              </EditableText>
+              <EditableText contentKey="video-subtitle" tag="h3" className="video-subtitle">
+                {t('home.transformSubtitle')}
+              </EditableText>
+              <EditableText contentKey="video-description" tag="p" className="video-description">
                 {t('home.transformDescription')}
-              </p>
+              </EditableText>
               <div className="video-features">
                 <div className="video-feature">
                   <svg className="feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,79 +94,87 @@ export default function Home() {
               </div>
             </div>
             <div className="video-wrapper">
-              <iframe
-                className="video-iframe"
+              <EditableVideo
                 src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                className="video-iframe"
+                contentKey="home-video"
                 title="Video educativo"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-              ></iframe>
+              />
             </div>
           </div>
         </div>
 
         {/* Galería de Imágenes */}
         <div className="gallery-section">
-          <h2 className="gallery-title">{t('home.unforgettableMoments')}</h2>
+          <EditableText contentKey="gallery-title" tag="h2" className="gallery-title">
+            {t('home.unforgettableMoments')}
+          </EditableText>
           <div className="gallery-separator"></div>
           <div className="gallery-grid">
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img1.jpg"
                 alt="Galería 1"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-1"
                 unoptimized
               />
             </div>
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img2.jpg"
                 alt="Galería 2"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-2"
                 unoptimized
               />
             </div>
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img3.jpg"
                 alt="Galería 3"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-3"
                 unoptimized
               />
             </div>
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img4.jpg"
                 alt="Galería 4"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-4"
                 unoptimized
               />
             </div>
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img5.jpg"
                 alt="Galería 5"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-5"
                 unoptimized
               />
             </div>
             <div className="gallery-item">
-              <Image
+              <EditableImage
                 src="/images/gallery/img6.jpg"
                 alt="Galería 6"
                 width={400}
                 height={300}
                 className="gallery-image"
+                contentKey="gallery-image-6"
                 unoptimized
               />
             </div>
@@ -160,14 +183,19 @@ export default function Home() {
 
         {/* Sección de Testimonios */}
         <div className="testimonials-section">
-          <h2 className="testimonials-title">{t('home.whatStudentsSay')}</h2>
+          <EditableText contentKey="testimonials-title" tag="h2" className="testimonials-title">
+            {t('home.whatStudentsSay')}
+          </EditableText>
           <div className="testimonials-separator"></div>
           <div className="testimonials-carousel">
             <div className="testimonials-track">
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: '#f97316' }}>
-                  <span>AG</span>
-                </div>
+                <EditableAvatar
+                  initials="AG"
+                  backgroundColor="#f97316"
+                  contentKey="testimonial-1-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -175,14 +203,23 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.anaGarcia')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial1')}</p>
+                <EditableText contentKey="testimonial-1-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.anaGarcia')}
+                </EditableText>
+                <EditableText contentKey="testimonial-1-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-1-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial1')}
+                </EditableText>
               </div>
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: '#9333ea' }}>
-                  <span>LF</span>
-                </div>
+                <EditableAvatar
+                  initials="LF"
+                  backgroundColor="#9333ea"
+                  contentKey="testimonial-2-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -190,14 +227,23 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.luisFernandez')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial2')}</p>
+                <EditableText contentKey="testimonial-2-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.luisFernandez')}
+                </EditableText>
+                <EditableText contentKey="testimonial-2-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-2-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial2')}
+                </EditableText>
               </div>
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: 'linear-gradient(135deg, rgb(168, 85, 247), rgb(236, 72, 153))' }}>
-                  <span>JM</span>
-                </div>
+                <EditableAvatar
+                  initials="JM"
+                  backgroundColor="linear-gradient(135deg, rgb(168, 85, 247), rgb(236, 72, 153))"
+                  contentKey="testimonial-3-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -205,14 +251,23 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.juanMartinez')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial3')}</p>
+                <EditableText contentKey="testimonial-3-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.juanMartinez')}
+                </EditableText>
+                <EditableText contentKey="testimonial-3-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-3-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial3')}
+                </EditableText>
               </div>
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: '#3b82f6' }}>
-                  <span>MR</span>
-                </div>
+                <EditableAvatar
+                  initials="MR"
+                  backgroundColor="#3b82f6"
+                  contentKey="testimonial-4-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -220,15 +275,24 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.mariaRodriguez')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial4')}</p>
+                <EditableText contentKey="testimonial-4-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.mariaRodriguez')}
+                </EditableText>
+                <EditableText contentKey="testimonial-4-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-4-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial4')}
+                </EditableText>
               </div>
               {/* Duplicar tarjetas para efecto infinito */}
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: '#f97316' }}>
-                  <span>AG</span>
-                </div>
+                <EditableAvatar
+                  initials="AG"
+                  backgroundColor="#f97316"
+                  contentKey="testimonial-1-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -236,14 +300,23 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.anaGarcia')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial1')}</p>
+                <EditableText contentKey="testimonial-1-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.anaGarcia')}
+                </EditableText>
+                <EditableText contentKey="testimonial-1-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-1-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial1')}
+                </EditableText>
               </div>
               <div className="testimonial-card">
-                <div className="testimonial-avatar" style={{ background: '#9333ea' }}>
-                  <span>LF</span>
-                </div>
+                <EditableAvatar
+                  initials="LF"
+                  backgroundColor="#9333ea"
+                  contentKey="testimonial-2-avatar"
+                  size={60}
+                />
                 <div className="testimonial-stars">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="star-icon" fill="#fbbf24" viewBox="0 0 20 20">
@@ -251,9 +324,15 @@ export default function Home() {
                     </svg>
                   ))}
                 </div>
-                <h3 className="testimonial-name">{t('testimonials.luisFernandez')}</h3>
-                <p className="testimonial-role">{t('testimonials.student')}</p>
-                <p className="testimonial-quote">{t('testimonials.testimonial2')}</p>
+                <EditableText contentKey="testimonial-2-name" tag="h3" className="testimonial-name">
+                  {t('testimonials.luisFernandez')}
+                </EditableText>
+                <EditableText contentKey="testimonial-2-role" tag="p" className="testimonial-role">
+                  {t('testimonials.student')}
+                </EditableText>
+                <EditableText contentKey="testimonial-2-quote" tag="p" className="testimonial-quote">
+                  {t('testimonials.testimonial2')}
+                </EditableText>
               </div>
             </div>
           </div>
