@@ -29,6 +29,7 @@ export default function EditableImage({
   const [imageSrc, setImageSrc] = useState(src);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   // Cargar contenido guardado desde la base de datos al montar el componente
   useEffect(() => {
@@ -40,14 +41,17 @@ export default function EditableImage({
         if (response.ok && data.success && data.data && data.data.content) {
           // Si hay contenido guardado, usarlo
           setImageSrc(data.data.content);
+          setImageError(false);
         } else {
           // Si no hay contenido guardado, usar el src por defecto
           setImageSrc(src);
+          setImageError(false);
         }
       } catch (error) {
         console.error('Error al cargar contenido guardado:', error);
         // En caso de error, usar el src por defecto
         setImageSrc(src);
+        setImageError(false);
       } finally {
         setLoading(false);
       }
@@ -86,10 +90,13 @@ export default function EditableImage({
       const data = await response.json();
 
       if (response.ok && data.url) {
+        console.log('✅ Imagen subida exitosamente:', data.url);
+        // Actualizar el estado inmediatamente
+        setImageError(false);
         setImageSrc(data.url);
         
         // Guardar la URL en la base de datos
-        await fetch('/api/content/save-editable-content', {
+        const saveResponse = await fetch('/api/content/save-editable-content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -98,7 +105,14 @@ export default function EditableImage({
             content: data.url,
           }),
         });
+        
+        if (saveResponse.ok) {
+          console.log('✅ URL guardada en la base de datos');
+        } else {
+          console.error('❌ Error al guardar la URL en la base de datos');
+        }
       } else {
+        console.error('❌ Error al subir imagen:', data.error);
         alert(data.error || 'Error al subir la imagen');
       }
     } catch (error) {
@@ -134,15 +148,71 @@ export default function EditableImage({
           <span>{uploading ? 'Subiendo...' : 'Clic para cambiar imagen'}</span>
         </div>
       )}
-      <Image
-        src={imageSrc}
-        alt={alt}
-        width={width}
-        height={height}
-        className={className}
-        priority={priority}
-        unoptimized={unoptimized}
-      />
+      {loading ? (
+        <div
+          style={{
+            width: width,
+            height: height,
+            background: '#f3f4f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ca3af',
+            fontSize: '0.875rem',
+            borderRadius: '8px',
+          }}
+        >
+          Cargando...
+        </div>
+      ) : imageSrc && !imageError ? (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <Image
+            src={imageSrc}
+            alt={alt}
+            width={width}
+            height={height}
+            className={className}
+            priority={priority}
+            unoptimized={unoptimized}
+            style={{ 
+              objectFit: 'cover',
+              width: '100%',
+              height: '100%'
+            }}
+          />
+          {/* Imagen oculta para detectar errores */}
+          <img
+            src={imageSrc}
+            alt=""
+            style={{ display: 'none' }}
+            onError={() => {
+              console.warn('⚠️ Error al cargar imagen:', imageSrc);
+              setImageError(true);
+            }}
+            onLoad={() => {
+              console.log('✅ Imagen cargada exitosamente:', imageSrc);
+              setImageError(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div
+          style={{
+            width: width,
+            height: height,
+            background: '#f3f4f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ca3af',
+            fontSize: '0.875rem',
+            borderRadius: '8px',
+            border: isEditMode ? '2px dashed #cbd5e1' : 'none',
+          }}
+        >
+          {isEditMode ? 'Clic para agregar imagen' : 'Sin imagen'}
+        </div>
+      )}
     </div>
   );
 }
