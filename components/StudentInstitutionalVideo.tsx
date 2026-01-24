@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import StudentGradesView from './StudentGradesView';
+import RespuestasEstudiante from './RespuestasEstudiante';
 import '../app/css/courses-list.css';
 
-export default function StudentInstitutionalVideo() {
+interface StudentInstitutionalVideoProps {
+  onContenidoSelect?: (contenidoId: string) => void;
+}
+
+export default function StudentInstitutionalVideo({ onContenidoSelect }: StudentInstitutionalVideoProps = {}) {
   const [videoUrl, setVideoUrl] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -194,6 +199,9 @@ export default function StudentInstitutionalVideo() {
           </div>
         )}
       </div>
+
+      {/* Respuestas del profesor */}
+      <RespuestasEstudiante onContenidoSelect={onContenidoSelect} />
 
       {/* Calificaciones por materia */}
       <StudentGradesView />

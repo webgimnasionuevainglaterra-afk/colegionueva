@@ -27,10 +27,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const authHeader = request.headers.get('authorization');
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
@@ -38,75 +39,63 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Usuario no válido' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const mensajeId = searchParams.get('mensaje_id');
+    const body = await request.json();
+    const { pregunta_id } = body;
 
-    if (!mensajeId) {
+    if (!pregunta_id) {
       return NextResponse.json(
-        { error: 'mensaje_id es requerido' },
+        { error: 'pregunta_id es requerido' },
         { status: 400 }
       );
     }
 
-    // Obtener el mensaje existente
-    const { data: mensaje, error: mensajeError } = await supabaseAdmin
-      .from('mensajes_foro')
-      .select('id, autor_id, eliminado')
-      .eq('id', mensajeId)
-      .single();
+    // Verificar que la pregunta existe y pertenece al usuario
+    const { data: pregunta, error: preguntaError } = await supabaseAdmin
+      .from('preguntas_respuestas')
+      .select('id, autor_id, tipo')
+      .eq('id', pregunta_id)
+      .eq('tipo', 'pregunta')
+      .maybeSingle();
 
-    if (mensajeError || !mensaje) {
+    if (preguntaError || !pregunta) {
       return NextResponse.json(
-        { error: 'Mensaje no encontrado' },
+        { error: 'Pregunta no encontrada' },
         { status: 404 }
       );
     }
 
-    if (mensaje.eliminado) {
+    // Verificar que el usuario es el autor de la pregunta
+    if (pregunta.autor_id !== user.id) {
       return NextResponse.json(
-        { error: 'El mensaje ya fue eliminado' },
-        { status: 400 }
-      );
-    }
-
-    // Verificar que el usuario es el autor del mensaje
-    if (mensaje.autor_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Solo puedes eliminar tus propios mensajes' },
+        { error: 'No tienes permiso para eliminar esta pregunta' },
         { status: 403 }
       );
     }
 
     // Soft delete: marcar como eliminado
     const { error: deleteError } = await supabaseAdmin
-      .from('mensajes_foro')
-      .update({
-        eliminado: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', mensajeId);
+      .from('preguntas_respuestas')
+      .update({ eliminado: true })
+      .eq('id', pregunta_id);
 
     if (deleteError) {
-      console.error('Error al eliminar mensaje:', deleteError);
+      console.error('Error al eliminar pregunta:', deleteError);
       return NextResponse.json(
-        { error: 'Error al eliminar el mensaje' },
+        { error: 'Error al eliminar la pregunta' },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Mensaje eliminado exitosamente',
-    }, { status: 200 });
-
+      message: 'Pregunta eliminada correctamente'
+    });
   } catch (error: any) {
-    console.error('Error en delete-mensaje:', error);
+    console.error('Error en delete pregunta:', error);
     return NextResponse.json(
-      { error: error.message || 'Error interno del servidor' },
+      { error: 'Error interno del servidor', detalle: error.message },
       { status: 500 }
     );
   }
 }
-
-
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -84,6 +84,11 @@ export default function Dashboard() {
   const [selectedStudentSubjectName, setSelectedStudentSubjectName] = useState<string | null>(null);
   const [selectedTema, setSelectedTema] = useState<{ tema: any; periodoNombre: string } | null>(null);
   const [selectedEvaluacionId, setSelectedEvaluacionId] = useState<string | null>(null);
+  const [selectedContenidoId, setSelectedContenidoId] = useState<string | null>(null);
+  const [selectedMensajeId, setSelectedMensajeId] = useState<string | null>(null);
+  const [cargandoContenidoDesdeNotificacion, setCargandoContenidoDesdeNotificacion] = useState(false);
+  const [urlParamsProcesados, setUrlParamsProcesados] = useState(false);
+  const searchParams = useSearchParams();
 
   // Debug: Verificar cuando cambia selectedTema
   useEffect(() => {
@@ -192,6 +197,311 @@ export default function Dashboard() {
       router.push('/aula-virtual');
     }
   }, [user, loading, router]);
+
+  // Manejar parámetros de URL para abrir contenido desde notificaciones
+  // Este useEffect se ejecuta SOLO UNA VEZ cuando la página se carga
+  useEffect(() => {
+    // Solo procesar si el usuario ya está cargado y no hemos procesado los parámetros
+    if (loading || !userRole || urlParamsProcesados) {
+      return;
+    }
+
+    // Leer parámetros de la URL usando searchParams de Next.js
+    const contenidoId = searchParams.get('contenido_id');
+    const mensajeId = searchParams.get('mensaje_id');
+    const temaId = searchParams.get('tema_id');
+    const materiaId = searchParams.get('materia_id');
+    
+    // Si no hay parámetros, marcar como procesado y salir
+    if (!contenidoId && !temaId) {
+      setUrlParamsProcesados(true);
+      return;
+    }
+    
+    console.log('🔍 Procesando parámetros de URL:', { contenidoId, mensajeId, temaId, materiaId });
+    
+    // Si hay tema_id y materia_id pero no contenido_id, necesitamos buscar el contenido
+    // Esto es para notificaciones antiguas o enlaces alternativos
+    if ((userRole === 'profesor' || userRole === 'estudiante') && temaId && materiaId && !contenidoId) {
+      console.log('⚠️ URL tiene tema_id y materia_id pero no contenido_id, buscando contenido...');
+      
+      // Marcar que estamos cargando
+      setCargandoContenidoDesdeNotificacion(true);
+      
+      // Asegurar que el menú activo sea 'dashboard'
+      if (activeMenu !== 'dashboard') {
+        setActiveMenu('dashboard');
+      }
+      
+      // Buscar el contenido del tema y cargarlo directamente
+      const buscarYcargarContenido = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            setCargandoContenidoDesdeNotificacion(false);
+            return;
+          }
+
+          // Obtener el nombre de la materia directamente desde Supabase
+          let materiaNombre = 'Materia';
+          try {
+            const { data: materiaData } = await supabase
+              .from('materias')
+              .select('nombre')
+              .eq('id', materiaId)
+              .single();
+            
+            if (materiaData && materiaData.nombre) {
+              materiaNombre = materiaData.nombre;
+            }
+          } catch (err) {
+            console.warn('⚠️ No se pudo obtener el nombre de la materia:', err);
+          }
+
+          // Usar la nueva API que obtiene el contenido directamente por tema_id
+          console.log('📥 Obteniendo contenido por tema_id:', temaId);
+          
+          const response = await fetch(
+            `/api/contenido/get-contenido-by-tema?tema_id=${temaId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            }
+          );
+
+          const result = await response.json();
+          console.log('📥 Resultado de get-contenido-by-tema:', { 
+            ok: response.ok, 
+            status: response.status,
+            error: result.error,
+            tieneData: !!result.data,
+            tieneTema: !!result.data?.tema
+          });
+          
+          if (!response.ok) {
+            console.error('❌ Error en la respuesta de la API:', result.error);
+            console.error('❌ Status:', response.status);
+            setCargandoContenidoDesdeNotificacion(false);
+            return;
+          }
+          
+          if (response.ok && result.data && result.data.tema) {
+            const temaData = result.data.tema;
+            
+            // Buscar el primer contenido del tema
+            let contenidoEncontrado = null;
+            let subtemaConContenido = null;
+            
+            for (const subtema of temaData.subtemas || []) {
+              if (subtema.contenido && subtema.contenido.length > 0) {
+                contenidoEncontrado = subtema.contenido[0];
+                subtemaConContenido = subtema;
+                break;
+              }
+            }
+            
+            if (contenidoEncontrado) {
+              console.log('✅ Contenido encontrado para tema:', contenidoEncontrado.id);
+              
+              const periodoNombre = temaData.periodos?.nombre || 'Periodo';
+              const materiaIdFromTema = temaData.periodos?.materias?.id || materiaId;
+              const materiaNombreFromTema = temaData.periodos?.materias?.nombre || materiaNombre;
+              
+              // Establecer el contenido y tema directamente
+              setSelectedStudentSubjectId(materiaIdFromTema);
+              setSelectedStudentSubjectName(materiaNombreFromTema);
+              setSelectedContenidoId(contenidoEncontrado.id);
+              if (mensajeId) {
+                setSelectedMensajeId(mensajeId);
+              }
+              
+              // Crear el tema con solo el subtema que contiene este contenido
+              const temaConSubtema = {
+                ...temaData,
+                subtemas: [{
+                  ...subtemaConContenido,
+                  contenido: [contenidoEncontrado]
+                }]
+              };
+              
+              console.log('✅ Estableciendo tema desde tema_id/materia_id:', {
+                temaId: temaConSubtema.id,
+                temaNombre: temaConSubtema.nombre,
+                subtemasCount: temaConSubtema.subtemas?.length,
+                periodoNombre: periodoNombre
+              });
+              
+              setSelectedTema({
+                tema: temaConSubtema,
+                periodoNombre: periodoNombre
+              });
+              
+              setCargandoContenidoDesdeNotificacion(false);
+              setUrlParamsProcesados(true);
+              
+              // Limpiar parámetros de URL
+              setTimeout(() => {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('tema_id');
+                newUrl.searchParams.delete('materia_id');
+                newUrl.searchParams.delete('mensaje_id');
+                window.history.replaceState({}, '', newUrl.toString());
+                console.log('🧹 Parámetros de URL limpiados (tema_id/materia_id)');
+              }, 1000);
+            } else {
+              console.warn('⚠️ No se encontró contenido para el tema especificado');
+              setCargandoContenidoDesdeNotificacion(false);
+              setUrlParamsProcesados(true);
+            }
+          } else {
+            console.error('❌ Error al obtener contenido:', result.error);
+            setCargandoContenidoDesdeNotificacion(false);
+            setUrlParamsProcesados(true);
+          }
+        } catch (err) {
+          console.error('❌ Error al buscar contenido:', err);
+          setCargandoContenidoDesdeNotificacion(false);
+          setUrlParamsProcesados(true);
+        }
+      };
+
+      buscarYcargarContenido();
+      return;
+    }
+    
+    // Solo procesar si es profesor o estudiante y hay contenido_id
+    if ((userRole === 'profesor' || userRole === 'estudiante') && contenidoId) {
+      // Evitar procesar múltiples veces el mismo contenido
+      if (selectedContenidoId === contenidoId && selectedTema) {
+        console.log('ℹ️ Contenido ya está cargado, saltando...');
+        setUrlParamsProcesados(true);
+        return;
+      }
+
+      console.log('✅ Contenido ID encontrado, cargando contenido...');
+      
+      // Marcar que estamos cargando contenido desde notificación
+      setCargandoContenidoDesdeNotificacion(true);
+      
+      // Asegurar que el menú activo sea 'dashboard' para que se muestre el contenido
+      if (activeMenu !== 'dashboard') {
+        console.log('🔄 Cambiando activeMenu a dashboard');
+        setActiveMenu('dashboard');
+      }
+      
+      setSelectedContenidoId(contenidoId);
+      if (mensajeId) {
+        setSelectedMensajeId(mensajeId);
+      }
+      
+      // Cargar el contenido y abrir el tema correspondiente
+      const cargarContenido = async () => {
+        try {
+          console.log('📥 Iniciando carga de contenido...');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            console.error('❌ No hay sesión activa');
+            setCargandoContenidoDesdeNotificacion(false);
+            return;
+          }
+
+          const response = await fetch(
+            `/api/contenido/get-contenido-by-id?contenido_id=${contenidoId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            }
+          );
+
+          const result = await response.json();
+          console.log('📥 Respuesta de API:', { ok: response.ok, error: result.error, tieneData: !!result.data });
+          
+          if (response.ok && result.data) {
+            const contenido = result.data;
+            console.log('📥 Contenido cargado:', {
+              id: contenido.id,
+              titulo: contenido.titulo,
+              tieneSubtemas: !!contenido.subtemas,
+              tieneTemas: !!contenido.subtemas?.temas,
+              tienePeriodos: !!contenido.subtemas?.temas?.periodos,
+              tieneMaterias: !!contenido.subtemas?.temas?.periodos?.materias
+            });
+            
+            const materiaId = contenido.subtemas?.temas?.periodos?.materias?.id;
+            const materiaNombre = contenido.subtemas?.temas?.periodos?.materias?.nombre;
+            
+            console.log('📥 Materia ID:', materiaId, 'Nombre:', materiaNombre);
+            
+            if (materiaId) {
+              console.log('✅ Estableciendo materia seleccionada:', materiaId, materiaNombre);
+              setSelectedStudentSubjectId(materiaId);
+              setSelectedStudentSubjectName(materiaNombre);
+              
+              // Crear el tema con solo el subtema que contiene este contenido
+              const tema = contenido.subtemas?.temas;
+              if (tema) {
+                const temaConSubtema = {
+                  ...tema,
+                  subtemas: [{
+                    ...contenido.subtemas,
+                    contenido: [contenido]
+                  }]
+                };
+                
+                const periodoNombre = contenido.subtemas?.temas?.periodos?.nombre || 'Periodo';
+                console.log('✅ Estableciendo tema seleccionado:', {
+                  temaId: temaConSubtema.id,
+                  temaNombre: temaConSubtema.nombre,
+                  subtemasCount: temaConSubtema.subtemas?.length,
+                  periodoNombre,
+                  tieneContenido: temaConSubtema.subtemas?.[0]?.contenido?.length > 0
+                });
+                
+                // Establecer el tema
+                setSelectedTema({
+                  tema: temaConSubtema,
+                  periodoNombre: periodoNombre
+                });
+                
+                // Marcar que terminamos de cargar
+                setCargandoContenidoDesdeNotificacion(false);
+                
+                // Limpiar parámetros de URL después de procesarlos exitosamente
+                setTimeout(() => {
+                  const newUrl = new URL(window.location.href);
+                  newUrl.searchParams.delete('contenido_id');
+                  newUrl.searchParams.delete('mensaje_id');
+                  window.history.replaceState({}, '', newUrl.toString());
+                  console.log('🧹 Parámetros de URL limpiados');
+                }, 1000);
+              } else {
+                console.warn('⚠️ No se encontró el tema en el contenido');
+                setCargandoContenidoDesdeNotificacion(false);
+              }
+            } else {
+              console.warn('⚠️ No se encontró la materia en el contenido');
+              setCargandoContenidoDesdeNotificacion(false);
+            }
+          } else {
+            console.error('❌ Error al cargar contenido:', result.error);
+            setCargandoContenidoDesdeNotificacion(false);
+          }
+        } catch (err) {
+          console.error('❌ Error al cargar contenido desde URL:', err);
+          setCargandoContenidoDesdeNotificacion(false);
+        } finally {
+          setUrlParamsProcesados(true);
+        }
+      };
+
+      cargarContenido();
+    } else {
+      // Si no hay parámetros para procesar, marcar como procesado
+      setUrlParamsProcesados(true);
+    }
+  }, [userRole, loading]); // Solo ejecutar cuando cambien userRole o loading (carga inicial)
 
   // Error boundary manual
   if (dashboardError) {
@@ -668,14 +978,6 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <button
-              className="notifications-button"
-              aria-label="Notificaciones"
-            >
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </button>
             <div className="settings-dropdown">
               <button
                 className="settings-button"
@@ -940,7 +1242,167 @@ export default function Dashboard() {
           ) : activeMenu === 'evaluaciones' && userRole === 'profesor' ? (
             <EvaluationsResultsView />
           ) : activeMenu === 'dashboard' && userRole === 'profesor' ? (
-            <TeacherDashboard />
+            (() => {
+              // Si estamos cargando contenido desde notificación, mostrar loading
+              if (cargandoContenidoDesdeNotificacion) {
+                console.log('⏳ Cargando contenido desde notificación...');
+                return (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    minHeight: '400px',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                  }}>
+                    <div style={{ fontSize: '1.125rem', color: '#6b7280' }}>
+                      Cargando contenido...
+                    </div>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      border: '4px solid #e5e7eb',
+                      borderTop: '4px solid #2563eb',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    <style>{`
+                      @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                      }
+                    `}</style>
+                  </div>
+                );
+              }
+              
+              // Verificar si hay un tema seleccionado (por ejemplo, desde una notificación)
+              const tieneTema = selectedTema && selectedTema.tema && selectedTema.tema.id;
+              const tieneEvaluacion = selectedEvaluacionId !== null && selectedEvaluacionId !== undefined;
+              
+              console.log('🎯 Dashboard profesor - Verificando renderizado:', {
+                tieneTema,
+                tieneEvaluacion,
+                cargandoContenidoDesdeNotificacion,
+                selectedTema: selectedTema ? { 
+                  id: selectedTema.tema?.id, 
+                  nombre: selectedTema.tema?.nombre,
+                  tieneSubtemas: selectedTema.tema?.subtemas?.length > 0,
+                  subtemasCount: selectedTema.tema?.subtemas?.length
+                } : null,
+                selectedEvaluacionId,
+                selectedStudentSubjectId,
+                selectedStudentSubjectName,
+                selectedContenidoId,
+                selectedMensajeId,
+                activeMenu
+              });
+              
+              // Si hay tema o evaluación, mostrar StudentSubjectContent
+              if (tieneTema || tieneEvaluacion) {
+                console.log('✅ Dashboard profesor - RENDERIZANDO StudentSubjectContent');
+                console.log('✅ Props que se pasan a StudentSubjectContent:', {
+                  subjectId: selectedStudentSubjectId,
+                  subjectName: selectedStudentSubjectName,
+                  temaId: selectedTema?.tema?.id,
+                  temaNombre: selectedTema?.tema?.nombre,
+                  contenidoId: selectedContenidoId,
+                  mensajeId: selectedMensajeId
+                });
+                return (
+                  <StudentSubjectContent
+                    key={`content-${selectedTema?.tema?.id || selectedEvaluacionId || selectedContenidoId || 'default'}`}
+                    subjectId={selectedStudentSubjectId}
+                    subjectName={selectedStudentSubjectName}
+                    selectedTemaFromSidebar={selectedTema}
+                    onTemaClear={() => {
+                      setSelectedTema(null);
+                      setCargandoContenidoDesdeNotificacion(false);
+                      setSelectedContenidoId(null);
+                      setSelectedMensajeId(null);
+                    }}
+                    selectedEvaluacionId={selectedEvaluacionId}
+                    onEvaluacionClear={() => {
+                      setSelectedEvaluacionId(null);
+                    }}
+                    selectedContenidoId={selectedContenidoId}
+                    selectedMensajeId={selectedMensajeId}
+                  />
+                );
+              } else {
+                // Si no hay tema seleccionado, mostrar el dashboard normal del profesor
+                console.log('ℹ️ Dashboard profesor - Mostrando TeacherDashboard (no hay tema seleccionado)');
+                console.log('ℹ️ Razón:', {
+                  selectedTemaEsNull: selectedTema === null,
+                  selectedTemaNoTieneTema: !selectedTema?.tema,
+                  selectedTemaNoTieneId: !selectedTema?.tema?.id,
+                  selectedEvaluacionIdEsNull: selectedEvaluacionId === null
+                });
+                return (
+                  <TeacherDashboard 
+                    onContenidoSelect={(contenidoId: string) => {
+                      // Manejar selección de contenido sin recargar página
+                      setSelectedContenidoId(contenidoId);
+                      setActiveMenu('dashboard');
+                      
+                      // Cargar contenido directamente
+                      const cargarContenidoDirecto = async () => {
+                        try {
+                          setCargandoContenidoDesdeNotificacion(true);
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (!session) return;
+
+                          const response = await fetch(
+                            `/api/contenido/get-contenido-by-id?contenido_id=${contenidoId}`,
+                            {
+                              headers: {
+                                'Authorization': `Bearer ${session.access_token}`,
+                              },
+                            }
+                          );
+
+                          const result = await response.json();
+                          
+                          if (response.ok && result.data) {
+                            const contenido = result.data;
+                            const materiaId = contenido.subtemas?.temas?.periodos?.materias?.id;
+                            const materiaNombre = contenido.subtemas?.temas?.periodos?.materias?.nombre;
+                            
+                            if (materiaId) {
+                              setSelectedStudentSubjectId(materiaId);
+                              setSelectedStudentSubjectName(materiaNombre);
+                              
+                              const tema = contenido.subtemas?.temas;
+                              if (tema) {
+                                const temaConSubtema = {
+                                  ...tema,
+                                  subtemas: [{
+                                    ...contenido.subtemas,
+                                    contenido: [contenido]
+                                  }]
+                                };
+                                
+                                const periodoNombre = contenido.subtemas?.temas?.periodos?.nombre || 'Periodo';
+                                setSelectedTema({
+                                  tema: temaConSubtema,
+                                  periodoNombre: periodoNombre
+                                });
+                              }
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error al cargar contenido:', err);
+                        } finally {
+                          setCargandoContenidoDesdeNotificacion(false);
+                        }
+                      };
+                      
+                      cargarContenidoDirecto();
+                    }}
+                  />
+                );
+              }
+            })()
           ) : activeMenu === 'dashboard' && userRole === 'super_admin' && selectedStudentId ? (
             <StudentDetailView
               studentId={selectedStudentId}
@@ -979,7 +1441,7 @@ export default function Dashboard() {
                 console.log('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema, 'o evaluación:', selectedEvaluacionId);
                 return (
                   <StudentSubjectContent
-                    key={`content-${selectedTema?.tema?.id || selectedEvaluacionId || 'default'}`}
+                    key={`content-${selectedTema?.tema?.id || selectedEvaluacionId || selectedContenidoId || 'default'}`}
                     subjectId={selectedStudentSubjectId}
                     subjectName={selectedStudentSubjectName}
                     selectedTemaFromSidebar={selectedTema}
@@ -992,6 +1454,8 @@ export default function Dashboard() {
                       console.log('🔄 Limpiando evaluación desde dashboard');
                       setSelectedEvaluacionId(null);
                     }}
+                    selectedContenidoId={selectedContenidoId}
+                    selectedMensajeId={selectedMensajeId}
                   />
                 );
               } else {
@@ -999,7 +1463,69 @@ export default function Dashboard() {
                 console.log('📺 selectedTema valor:', selectedTema);
                 console.log('📺 selectedTema.tema valor:', selectedTema?.tema);
                 console.log('📺 selectedEvaluacionId valor:', selectedEvaluacionId);
-                return <StudentInstitutionalVideo />;
+                return (
+                  <StudentInstitutionalVideo 
+                    onContenidoSelect={(contenidoId: string) => {
+                      // Manejar selección de contenido sin recargar página
+                      setSelectedContenidoId(contenidoId);
+                      setActiveMenu('dashboard');
+                      
+                      // Cargar contenido directamente
+                      const cargarContenidoDirecto = async () => {
+                        try {
+                          setCargandoContenidoDesdeNotificacion(true);
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (!session) return;
+
+                          const response = await fetch(
+                            `/api/contenido/get-contenido-by-id?contenido_id=${contenidoId}`,
+                            {
+                              headers: {
+                                'Authorization': `Bearer ${session.access_token}`,
+                              },
+                            }
+                          );
+
+                          const result = await response.json();
+                          
+                          if (response.ok && result.data) {
+                            const contenido = result.data;
+                            const materiaId = contenido.subtemas?.temas?.periodos?.materias?.id;
+                            const materiaNombre = contenido.subtemas?.temas?.periodos?.materias?.nombre;
+                            
+                            if (materiaId) {
+                              setSelectedStudentSubjectId(materiaId);
+                              setSelectedStudentSubjectName(materiaNombre);
+                              
+                              const tema = contenido.subtemas?.temas;
+                              if (tema) {
+                                const temaConSubtema = {
+                                  ...tema,
+                                  subtemas: [{
+                                    ...contenido.subtemas,
+                                    contenido: [contenido]
+                                  }]
+                                };
+                                
+                                const periodoNombre = contenido.subtemas?.temas?.periodos?.nombre || 'Periodo';
+                                setSelectedTema({
+                                  tema: temaConSubtema,
+                                  periodoNombre: periodoNombre
+                                });
+                              }
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error al cargar contenido:', err);
+                        } finally {
+                          setCargandoContenidoDesdeNotificacion(false);
+                        }
+                      };
+                      
+                      cargarContenidoDirecto();
+                    }}
+                  />
+                );
               }
             })()
           ) : activeMenu === 'dashboard' ? (

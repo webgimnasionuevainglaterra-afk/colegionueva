@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import { useAuth } from '@/contexts/AuthContext';
 import StudentQuizViewer from './StudentQuizViewer';
 import StudentEvaluacionViewer from './StudentEvaluacionViewer';
+import PreguntasRespuestas from './PreguntasRespuestas';
 
 interface Contenido {
   id: string;
@@ -68,6 +70,8 @@ interface StudentSubjectContentProps {
   onTemaClear?: () => void;
   selectedEvaluacionId?: string | null;
   onEvaluacionClear?: () => void;
+  selectedContenidoId?: string | null;
+  selectedMensajeId?: string | null;
 }
 
 // Componente para mostrar el botón de disponibilidad del quiz con conteo regresivo
@@ -699,16 +703,11 @@ export default function StudentSubjectContent({
   selectedTemaFromSidebar,
   onTemaClear,
   selectedEvaluacionId: externalSelectedEvaluacionId,
-  onEvaluacionClear
+  onEvaluacionClear,
+  selectedContenidoId: externalSelectedContenidoId,
+  selectedMensajeId: externalSelectedMensajeId
 }: StudentSubjectContentProps) {
-  console.log('🔍 StudentSubjectContent renderizado con props:', {
-    subjectId,
-    subjectName,
-    selectedTemaFromSidebar,
-    hasOnTemaClear: !!onTemaClear,
-    temaId: selectedTemaFromSidebar?.tema?.id,
-    temaNombre: selectedTemaFromSidebar?.tema?.nombre
-  });
+  const { userRole } = useAuth();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -751,34 +750,32 @@ export default function StudentSubjectContent({
     });
   }, []);
   
-  // Debug: Ver cuando cambia el estado expandedPeriodoId
-  useEffect(() => {
-    console.log('📊 expandedPeriodoId cambió a:', expandedPeriodoId);
-    console.log('📊 Periodos disponibles:', periodos.map(p => ({ id: p.id, nombre: p.nombre })));
-  }, [expandedPeriodoId, periodos]);
+  // Debug: Ver cuando cambia el estado expandedPeriodoId (solo en desarrollo)
+  // useEffect(() => {
+  //   console.log('📊 expandedPeriodoId cambió a:', expandedPeriodoId);
+  //   console.log('📊 Periodos disponibles:', periodos.map(p => ({ id: p.id, nombre: p.nombre })));
+  // }, [expandedPeriodoId, periodos]);
   
   // Sincronizar tema seleccionado desde el sidebar
   useEffect(() => {
-    console.log('🔄 selectedTemaFromSidebar cambió:', selectedTemaFromSidebar);
     if (selectedTemaFromSidebar && selectedTemaFromSidebar.tema && selectedTemaFromSidebar.tema.id) {
-      console.log('✅ Estableciendo tema seleccionado:', selectedTemaFromSidebar);
-      console.log('✅ Tema ID:', selectedTemaFromSidebar.tema.id);
-      console.log('✅ Tema nombre:', selectedTemaFromSidebar.tema.nombre);
-      console.log('✅ Tema tiene subtemas:', selectedTemaFromSidebar.tema.subtemas?.length || 0);
       // Solo actualizar si es diferente al estado actual
       setSelectedTema((prev) => {
         if (prev?.tema?.id !== selectedTemaFromSidebar.tema.id) {
-          console.log('✅ Actualizando estado local con nuevo tema');
           return selectedTemaFromSidebar;
         }
-        console.log('⏭️ Tema ya está en el estado, no actualizar');
+        return prev; // No actualizar si es el mismo tema
+      });
+    } else if (!selectedTemaFromSidebar) {
+      // Solo limpiar si realmente no hay tema seleccionado
+      setSelectedTema((prev) => {
+        if (prev !== null) {
+          return null;
+        }
         return prev;
       });
-    } else {
-      console.log('❌ Limpiando tema seleccionado - selectedTemaFromSidebar no es válido');
-      setSelectedTema(null);
     }
-  }, [selectedTemaFromSidebar]);
+  }, [selectedTemaFromSidebar?.tema?.id]); // Solo depender del ID del tema, no del objeto completo
 
   useEffect(() => {
     if (!subjectId) {
@@ -789,6 +786,13 @@ export default function StudentSubjectContent({
       if (!selectedTemaFromSidebar) {
         setSelectedTema(null);
       }
+      return;
+    }
+
+    // Si ya tenemos un tema seleccionado desde el sidebar, no necesitamos cargar los periodos
+    // El tema ya viene con toda la información necesaria
+    if (selectedTemaFromSidebar && selectedTemaFromSidebar.tema && selectedTemaFromSidebar.tema.id) {
+      setLoading(false);
       return;
     }
 
@@ -805,8 +809,15 @@ export default function StudentSubjectContent({
           throw new Error('No hay sesión activa');
         }
 
+        // Usar la API apropiada según el rol del usuario
+        const apiEndpoint = userRole === 'profesor' 
+          ? `/api/teachers/get-materia-contenidos?materia_id=${subjectId}`
+          : `/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`;
+        
+        console.log('📥 Cargando periodos desde API:', apiEndpoint, 'para rol:', userRole);
+        
         const response = await fetch(
-          `/api/estudiantes/get-materia-contenidos?materia_id=${subjectId}`,
+          apiEndpoint,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -816,14 +827,32 @@ export default function StudentSubjectContent({
         );
         const result = await response.json();
 
+        console.log('📥 Respuesta de API de periodos:', { 
+          ok: response.ok, 
+          status: response.status,
+          error: result.error,
+          tieneData: !!result.data 
+        });
+
         if (!response.ok) {
+          // Si es un error de profesor no encontrado y tenemos un tema seleccionado, no mostrar error
+          if (result.error?.includes('profesor') && selectedTemaFromSidebar) {
+            console.warn('⚠️ Error de profesor pero tenemos tema seleccionado, continuando...');
+            setLoading(false);
+            return;
+          }
           throw new Error(result.error || 'Error al cargar los contenidos de la materia');
         }
 
         setPeriodos(result.data || []);
       } catch (err: any) {
         console.error('Error al cargar contenidos de la materia:', err);
-        setError(err.message || 'Error al cargar los contenidos de la materia');
+        // Si tenemos un tema seleccionado, no mostrar el error porque ya tenemos la información
+        if (!selectedTemaFromSidebar) {
+          setError(err.message || 'Error al cargar los contenidos de la materia');
+        } else {
+          console.warn('⚠️ Error al cargar periodos pero tenemos tema seleccionado, continuando...');
+        }
         setPeriodos([]);
       } finally {
         setLoading(false);
@@ -831,7 +860,7 @@ export default function StudentSubjectContent({
     };
 
     fetchData();
-  }, [subjectId, selectedTemaFromSidebar]);
+  }, [subjectId, selectedTemaFromSidebar?.tema?.id, userRole]); // Solo depender del ID del tema, no del objeto completo
 
   // Cargar evaluaciones del período cuando se cargan los períodos
   useEffect(() => {
@@ -927,7 +956,7 @@ export default function StudentSubjectContent({
     };
 
     fetchQuizzes();
-  }, [selectedTemaFromSidebar, selectedTema]);
+  }, [selectedTemaFromSidebar?.tema?.id, selectedTema?.tema?.id]); // Solo depender de los IDs, no de los objetos completos
 
   // ============================================
   // FUNCIONES AUXILIARES - DEBEN estar definidas antes de ser usadas
@@ -982,21 +1011,8 @@ export default function StudentSubjectContent({
     typeof temaParaMostrar.periodoNombre === 'string'
   );
   
-  // Log de depuración para ver qué está pasando
-  console.log('🔍 ========== VERIFICACIÓN DE TEMA (AL INICIO DEL RENDER) ==========');
-  console.log('🔍 selectedTemaFromSidebar:', selectedTemaFromSidebar);
-  console.log('🔍 selectedTema local:', selectedTema);
-  console.log('🔍 temaParaMostrar:', temaParaMostrar);
-  console.log('🔍 tieneTemaValido:', tieneTemaValido);
-  if (temaParaMostrar) {
-    console.log('🔍 temaParaMostrar.tema:', temaParaMostrar.tema);
-    console.log('🔍 temaParaMostrar.tema.id:', temaParaMostrar.tema?.id);
-    console.log('🔍 temaParaMostrar.tema.nombre:', temaParaMostrar.tema?.nombre);
-    console.log('🔍 temaParaMostrar.periodoNombre:', temaParaMostrar.periodoNombre);
-    console.log('🔍 ⚠️ IMPORTANTE: Si tieneTemaValido es true, SOLO se mostrará este tema, NO otros temas');
-  } else {
-    console.log('🔍 ⚠️ ADVERTENCIA: temaParaMostrar es null/undefined - NO se mostrará tema individual');
-  }
+  // Log de depuración deshabilitado para evitar re-renders constantes
+  // Solo habilitar en caso de debugging específico
   
   // ============================================
   // SI HAY EVALUACIÓN SELECCIONADA (SIN TEMA): MOSTRARLA INMEDIATAMENTE
@@ -1133,16 +1149,6 @@ export default function StudentSubjectContent({
       );
     }
     // FORZAR RETURN - NO CONTINUAR CON EL CÓDIGO DE ABAJO
-    console.log('🎯 ========== RENDERIZANDO SOLO EL TEMA SELECCIONADO (RETORNO INMEDIATO) ==========');
-    console.log('🎯 Tema ID:', temaParaMostrar.tema.id);
-    console.log('🎯 Tema nombre:', temaParaMostrar.tema.nombre);
-    console.log('🎯 Periodo:', temaParaMostrar.periodoNombre);
-    console.log('🎯 Tema tiene subtemas:', temaParaMostrar.tema.subtemas?.length || 0);
-    console.log('🎯 Usando selectedTemaFromSidebar?', !!selectedTemaFromSidebar);
-    console.log('🎯 Usando selectedTema local?', !!selectedTema && !selectedTemaFromSidebar);
-    console.log('🎯 NO se mostrarán otros temas, solo este:', temaParaMostrar.tema.nombre);
-    console.log('🎯 ⚠️ IMPORTANTE: Este return DEBE ejecutarse y NO continuar con el código de abajo');
-    
     // Asegurarse de que solo tenemos los subtemas de este tema específico
     // IMPORTANTE: El tema ya viene filtrado desde el sidebar (solo contiene el subtema seleccionado)
     // Solo necesitamos asegurarnos de que los subtemas sean válidos
@@ -1153,13 +1159,6 @@ export default function StudentSubjectContent({
         return st && st.id;
       })
     };
-    
-    console.log('🎯 Tema filtrado - cantidad de subtemas:', temaFiltrado.subtemas.length);
-    console.log('🎯 ⚠️ IMPORTANTE: Si hay más de 1 subtema, debería haber solo 1 (el seleccionado)');
-    
-    console.log('🎯 Tema filtrado - solo subtemas de este tema:', temaFiltrado.subtemas.length);
-    console.log('🎯 Nombres de subtemas:', temaFiltrado.subtemas.map((st: any) => st.nombre));
-    console.log('🎯 RETORNANDO - NO se mostrarán otros temas del periodo');
     
     // RETORNAR INMEDIATAMENTE - NO continuar con el código de abajo que muestra todos los periodos
     return (
@@ -1239,7 +1238,6 @@ export default function StudentSubjectContent({
         {temaFiltrado.subtemas && temaFiltrado.subtemas.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {temaFiltrado.subtemas.map((subtema) => {
-              console.log('🎯 Renderizando subtema:', subtema.nombre, 'del tema:', temaParaMostrar.tema.nombre);
               return (
                 <div
                   key={subtema.id}
@@ -1316,21 +1314,7 @@ export default function StudentSubjectContent({
                             const tituloDuplicado = tituloTema.length > 0 && tituloContenido.length > 0 && tituloTema === tituloContenido;
                             const descripcionDuplicada = descripcionTema.length > 0 && descripcionContenido.length > 0 && descripcionTema === descripcionContenido;
                             
-                            // Debug: Verificar comparación
-                            if (tituloTema && tituloContenido) {
-                              console.log('🔍 Comparación de títulos:', {
-                                tema: tituloTema,
-                                contenido: tituloContenido,
-                                iguales: tituloDuplicado
-                              });
-                            }
-                            if (descripcionTema && descripcionContenido) {
-                              console.log('🔍 Comparación de descripciones:', {
-                                tema: descripcionTema,
-                                contenido: descripcionContenido,
-                                iguales: descripcionDuplicada
-                              });
-                            }
+                            // Debug deshabilitado para evitar re-renders constantes
                             
                             return (
                               <>
@@ -1462,6 +1446,23 @@ export default function StudentSubjectContent({
                               </div>
                             );
                           })()}
+
+                          {/* Preguntas y Respuestas */}
+                          <div style={{ 
+                            marginTop: '1.5rem', 
+                            background: '#f9fafb', 
+                            padding: '1rem', 
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb'
+                          }}>
+                            {useMemo(() => (
+                              <PreguntasRespuestas
+                                key={contenido.id}
+                                contenidoId={contenido.id}
+                                contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
+                              />
+                            ), [contenido.id, contenido.titulo])}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2002,17 +2003,22 @@ export default function StudentSubjectContent({
               </div>
             )}
 
-            {selectedContent.tipo === 'foro' && (
-              <p
-                style={{
-                  marginTop: '0.75rem',
-                  fontSize: '0.9rem',
-                  color: '#4b5563',
-                }}
-              >
-                Este es un foro. La funcionalidad completa del foro se implementará aquí.
-              </p>
-            )}
+            {/* Preguntas y Respuestas */}
+            <div style={{ 
+              marginTop: '2rem', 
+              background: '#f9fafb', 
+              padding: '1rem', 
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb'
+            }}>
+              {useMemo(() => (
+                <PreguntasRespuestas
+                  key={selectedContent.id}
+                  contenidoId={selectedContent.id}
+                  contenidoTitulo={`Preguntas sobre: ${selectedContent.titulo}`}
+                />
+              ), [selectedContent.id, selectedContent.titulo])}
+            </div>
           </div>
           )
         ) : (
@@ -2288,6 +2294,23 @@ export default function StudentSubjectContent({
                                   </div>
                                 );
                               })()}
+
+                              {/* Preguntas y Respuestas */}
+                              <div style={{ 
+                                marginTop: '1.5rem', 
+                                background: '#f9fafb', 
+                                padding: '1rem', 
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb'
+                              }}>
+                                {useMemo(() => (
+                                  <PreguntasRespuestas
+                                    key={contenido.id}
+                                    contenidoId={contenido.id}
+                                    contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
+                                  />
+                                ), [contenido.id, contenido.titulo])}
+                              </div>
                             </div>
                           ))}
                         </div>

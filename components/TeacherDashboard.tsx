@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import PreguntasPendientes from './PreguntasPendientes';
 import '../app/css/teacher-dashboard.css';
 
 interface DashboardStats {
@@ -76,7 +78,12 @@ interface StudentQuickView {
   };
 }
 
-export default function TeacherDashboard() {
+interface TeacherDashboardProps {
+  onContenidoSelect?: (contenidoId: string) => void;
+}
+
+export default function TeacherDashboard({ onContenidoSelect }: TeacherDashboardProps = {}) {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [participation, setParticipation] = useState<ParticipationData[]>([]);
   const [alerts, setAlerts] = useState<{
@@ -246,7 +253,17 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* Sección 2: Participación por Curso */}
+      {/* Sección 2: Preguntas Pendientes */}
+      <div style={{ marginBottom: '2rem' }}>
+        <PreguntasPendientes 
+          onContenidoSelect={onContenidoSelect || ((contenidoId: string) => {
+            // Si no hay callback del padre, usar router
+            router.push(`/dashboard?contenido_id=${contenidoId}`);
+          })}
+        />
+      </div>
+
+      {/* Sección 3: Participación por Curso */}
       {participation.length > 0 && (
         <div className="participation-section">
           <h2 className="section-title">Participación por Curso</h2>
