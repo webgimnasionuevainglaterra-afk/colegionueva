@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import '../css/community.css';
 import { useLanguage } from '@/contexts/LanguageContext';
+import EditableText from '@/components/EditableText';
+import EditableImage from '@/components/EditableImage';
 
 export default function Community() {
   const { t } = useLanguage();
@@ -101,8 +102,12 @@ export default function Community() {
     <main className="community-main" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="community-container">
         <div className="community-hero">
-          <h1 className="community-title">{t('community.title')}</h1>
-          <p className="community-subtitle">{t('community.subtitle')}</p>
+          <EditableText contentKey="community-title" tag="h1" className="community-title">
+            {t('community.title')}
+          </EditableText>
+          <EditableText contentKey="community-subtitle" tag="p" className="community-subtitle">
+            {t('community.subtitle')}
+          </EditableText>
         </div>
 
         <div className="gallery-section">
@@ -114,22 +119,31 @@ export default function Community() {
                 onClick={() => openModal(index)}
               >
                 <div className="gallery-image-wrapper">
-                  <Image
+                  <EditableImage
                     src={image.src}
                     alt={image.alt}
-                    fill
+                    width={400}
+                    height={400}
                     className="gallery-image"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    onError={(e) => {
-                      // Si la imagen no existe, usar placeholder
-                      const target = e.target as HTMLImageElement;
-                      target.src = `https://via.placeholder.com/600x400/2563eb/ffffff?text=${encodeURIComponent(image.title)}`;
-                    }}
+                    contentKey={`community-gallery-${image.id}`}
+                    unoptimized
                   />
                   <div className="gallery-overlay">
                     <div className="gallery-info">
-                      <h3 className="gallery-item-title">{image.title}</h3>
-                      <p className="gallery-item-description">{image.description}</p>
+                      <EditableText 
+                        contentKey={`community-gallery-${image.id}-title`} 
+                        tag="h3" 
+                        className="gallery-item-title"
+                      >
+                        {image.title}
+                      </EditableText>
+                      <EditableText 
+                        contentKey={`community-gallery-${image.id}-description`} 
+                        tag="p" 
+                        className="gallery-item-description"
+                      >
+                        {image.description}
+                      </EditableText>
                     </div>
                   </div>
                 </div>
@@ -177,21 +191,31 @@ export default function Community() {
           </button>
           <div className="gallery-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="gallery-modal-image-wrapper">
-              <Image
+              <EditableImage
                 src={galleryImages[selectedImage].src}
                 alt={galleryImages[selectedImage].alt}
-                fill
+                width={1200}
+                height={800}
                 className="gallery-modal-image"
-                sizes="90vw"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = `https://via.placeholder.com/1200x800/2563eb/ffffff?text=${encodeURIComponent(galleryImages[selectedImage].title)}`;
-                }}
+                contentKey={`community-gallery-${galleryImages[selectedImage].id}`}
+                unoptimized
               />
             </div>
             <div className="gallery-modal-info">
-              <h2 className="gallery-modal-title">{galleryImages[selectedImage].title}</h2>
-              <p className="gallery-modal-description">{galleryImages[selectedImage].description}</p>
+              <EditableText 
+                contentKey={`community-gallery-${galleryImages[selectedImage].id}-title`} 
+                tag="h2" 
+                className="gallery-modal-title"
+              >
+                {galleryImages[selectedImage].title}
+              </EditableText>
+              <EditableText 
+                contentKey={`community-gallery-${galleryImages[selectedImage].id}-description`} 
+                tag="p" 
+                className="gallery-modal-description"
+              >
+                {galleryImages[selectedImage].description}
+              </EditableText>
               <div className="gallery-modal-counter">
                 {selectedImage + 1} / {galleryImages.length}
               </div>

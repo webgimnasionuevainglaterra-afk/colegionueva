@@ -275,10 +275,11 @@
 .editable-image-editing,
 .editable-video-editing {
   padding: 1rem;
-  background: #f9fafb;
+  background: #ffffff;
   border: 2px solid #667eea;
   border-radius: 8px;
   margin: 0.5rem 0;
+  color: #1f2937;
 }
 
 .editable-text-input {
@@ -289,6 +290,12 @@
   font-size: 1rem;
   resize: vertical;
   width: 100%;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.editable-text-input::placeholder {
+  color: #9ca3af;
 }
 
 .editable-text-input:focus {
@@ -576,10 +583,11 @@
 
 .editable-text-editing {
   padding: 1rem;
-  background: #f9fafb;
+  background: #ffffff;
   border: 2px solid #667eea;
   border-radius: 8px;
   margin: 0.5rem 0;
+  color: #1f2937;
 }
 
 .editable-textarea {
@@ -591,6 +599,12 @@
   font-size: 1rem;
   resize: vertical;
   min-height: 60px;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.editable-textarea::placeholder {
+  color: #9ca3af;
 }
 
 .editable-textarea:focus {
