@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,7 +58,7 @@ const debugLog = (...args: any[]) => {
   }
 };
 
-export default function Dashboard() {
+function DashboardInner() {
   const { user, loading, userRole, signOut } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
@@ -1692,3 +1692,16 @@ export default function Dashboard() {
   );
 }
 
+export default function Dashboard() {
+  return (
+    <Suspense
+      fallback={
+        <div className="dashboard-loading">
+          <p>Cargando...</p>
+        </div>
+      }
+    >
+      <DashboardInner />
+    </Suspense>
+  );
+}
