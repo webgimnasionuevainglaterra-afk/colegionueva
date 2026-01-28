@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 1) Buscar acudiente por correo
-    const { data: acudiente, error: acudienteError } = await supabaseAdmin
+    // Nota: usamos supabaseAdmin como cliente de servidor ya inicializado.
+    const { data: acudiente, error: acudienteError } = await supabaseAdmin!
       .from('acudientes')
       .select('id, nombre, apellido, correo_electronico, numero_cedula')
       .eq('correo_electronico', correo_electronico)
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3) Obtener estudiantes asociados a este acudiente
-    const { data: estudiantes, error: estudiantesError } = await supabaseAdmin
+    const { data: estudiantes, error: estudiantesError } = await supabaseAdmin!
       .from('estudiantes')
       .select('id, user_id, nombre, apellido, correo_electronico, tarjeta_identidad')
       .eq('acudiente_id', acudiente.id);
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Obtener calificaciones de quizzes (con información de periodo y materia)
-      const { data: intentosQuiz } = await supabaseAdmin
+      const { data: intentosQuiz } = await supabaseAdmin!
         .from('intentos_quiz')
         .select(`
           id,
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
         .not('calificacion', 'is', null);
 
       // Obtener calificaciones de evaluaciones (con información de periodo y materia)
-      const { data: intentosEvaluacion } = await supabaseAdmin
+      const { data: intentosEvaluacion } = await supabaseAdmin!
         .from('intentos_evaluacion')
         .select(`
           id,
