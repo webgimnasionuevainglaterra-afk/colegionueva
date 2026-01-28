@@ -27,3 +27,4 @@ COMMENT ON COLUMN quizzes_estudiantes.activado_por IS 'ID del profesor o adminis
 
 
 
+

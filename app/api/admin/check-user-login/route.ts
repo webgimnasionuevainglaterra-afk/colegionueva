@@ -54,6 +54,10 @@ export async function GET(request: NextRequest) {
       .eq('id', authUser.id)
       .maybeSingle();
 
+    // Algunas propiedades como `banned_until` no están tipadas en `User` de supabase-js,
+    // pero existen en la base de datos. Accedemos de forma segura usando `any`.
+    const bannedUntil = (authUser as any)?.banned_until ?? null;
+
     // Obtener información del usuario
     const userInfo = {
       id: authUser.id,
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
       email_confirmed: authUser.email_confirmed_at !== null,
       created_at: authUser.created_at,
       last_sign_in: authUser.last_sign_in_at,
-      is_active: authUser.banned_until === null,
+      is_active: bannedUntil === null,
     };
 
     // Si es estudiante, obtener los últimos 4 dígitos de su cédula

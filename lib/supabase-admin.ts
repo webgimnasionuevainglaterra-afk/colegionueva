@@ -5,18 +5,28 @@ import { createClient } from '@supabase/supabase-js';
 
 // ⚠️ IMPORTANTE: Esta clave solo debe usarse en el servidor (API routes)
 // NUNCA la expongas en el cliente
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pdhvrvawsguwnbnfokaa.supabase.co';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pdhvrvawsguwnbnfokaa.supabase.co';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Cliente con permisos de administrador (solo para uso en servidor)
-export const supabaseAdmin = supabaseServiceRoleKey
-  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : null;
+// Si la SERVICE_ROLE_KEY no está configurada, lanzamos un error en tiempo de ejecución
+// en lugar de devolver null para evitar problemas de tipos en TypeScript.
+export const supabaseAdmin = (() => {
+  if (!supabaseServiceRoleKey) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY no está configurada. ' +
+        'Asegúrate de definirla en las variables de entorno del servidor.'
+    );
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+})();
 
 /**
  * Confirmar email de un usuario (solo funciona con SERVICE_ROLE_KEY)

@@ -139,7 +139,9 @@ export async function GET(request: NextRequest) {
     const quizzesPorTema: Record<string, Set<string>> = {};
 
     quizzes?.forEach((quiz: any) => {
-      const temaId = quiz.subtemas?.tema_id;
+      // `subtemas` puede venir como arreglo por la relación; tomamos el primero si es array
+      const subtema = Array.isArray(quiz.subtemas) ? quiz.subtemas[0] : quiz.subtemas;
+      const temaId = subtema?.tema_id as string | undefined;
       if (temaId) {
         if (!quizzesPorTema[temaId]) {
           quizzesPorTema[temaId] = new Set();
@@ -151,7 +153,8 @@ export async function GET(request: NextRequest) {
     intentos?.forEach((intento: any) => {
       const quiz = quizzes?.find((q: any) => q.id === intento.quiz_id);
       if (quiz) {
-        const temaId = quiz.subtemas?.tema_id;
+        const subtema = Array.isArray(quiz.subtemas) ? quiz.subtemas[0] : quiz.subtemas;
+        const temaId = subtema?.tema_id as string | undefined;
         if (temaId) {
           if (!quizzesCompletadosPorTema[temaId]) {
             quizzesCompletadosPorTema[temaId] = new Set();
