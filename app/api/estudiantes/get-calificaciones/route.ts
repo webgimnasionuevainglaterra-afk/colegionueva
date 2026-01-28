@@ -173,18 +173,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calcular promedios
+    // Calcular promedios ponderados por materia:
+    // - Promedio de quices (70%)
+    // - Promedio de evaluaciones (30%)
+    // Si no hay quices o evaluaciones, se considera 0 para ese componente.
     for (const materiaId in calificacionesPorMateria) {
       const materia = calificacionesPorMateria[materiaId];
-      const todasLasCalificaciones = [
-        ...materia.quizzes.map(q => q.calificacion),
-        ...materia.evaluaciones.map(e => e.calificacion),
-      ];
 
-      if (todasLasCalificaciones.length > 0) {
-        const suma = todasLasCalificaciones.reduce((acc, cal) => acc + cal, 0);
-        materia.promedio = parseFloat((suma / todasLasCalificaciones.length).toFixed(2));
-      }
+      const promedioQuizzes =
+        materia.quizzes.length > 0
+          ? materia.quizzes.reduce((acc, q) => acc + q.calificacion, 0) / materia.quizzes.length
+          : 0;
+
+      const promedioEvaluaciones =
+        materia.evaluaciones.length > 0
+          ? materia.evaluaciones.reduce((acc, e) => acc + e.calificacion, 0) / materia.evaluaciones.length
+          : 0;
+
+      const notaFinal = (promedioQuizzes * 0.7) + (promedioEvaluaciones * 0.3);
+      materia.promedio = parseFloat(notaFinal.toFixed(2));
     }
 
     // Convertir a array y ordenar por nombre de materia

@@ -30,6 +30,7 @@ import StudentInstitutionalVideo from '@/components/StudentInstitutionalVideo';
 import StudentSubjectContent from '@/components/StudentSubjectContent';
 import StudentDetailView from '@/components/StudentDetailView';
 import TeacherDetailView from '@/components/TeacherDetailView';
+import StudentGradesView from '@/components/StudentGradesView';
 import InstitutionalVideoManager from '@/components/InstitutionalVideoManager';
 import AdminSidebar from '@/components/AdminSidebar';
 import AdminRightSidebar from '@/components/AdminRightSidebar';
@@ -48,6 +49,14 @@ interface AdministratorInfo {
   role: string;
   is_online?: boolean;
 }
+
+// Utilidad simple para logs de depuración: solo loguea si no estamos en producción.
+const debugLog = (...args: any[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log(...args);
+  }
+};
 
 export default function Dashboard() {
   const { user, loading, userRole, signOut } = useAuth();
@@ -93,24 +102,24 @@ export default function Dashboard() {
   const [urlParamsProcesados, setUrlParamsProcesados] = useState(false);
   const searchParams = useSearchParams();
 
-  // Debug: Verificar cuando cambia selectedTema
+  // Debug: Verificar cuando cambia selectedTema (solo en desarrollo)
   useEffect(() => {
-    console.log('🔍 Dashboard - selectedTema cambió:', selectedTema);
+    debugLog('🔍 Dashboard - selectedTema cambió:', selectedTema);
     if (selectedTema) {
-      console.log('🔍 Dashboard - Tema seleccionado:', selectedTema.tema.nombre);
-      console.log('🔍 Dashboard - Periodo:', selectedTema.periodoNombre);
+      debugLog('🔍 Dashboard - Tema seleccionado:', selectedTema.tema.nombre);
+      debugLog('🔍 Dashboard - Periodo:', selectedTema.periodoNombre);
     }
   }, [selectedTema]);
 
   // Callback para manejar la selección de tema - usar useCallback para mantener la referencia estable
   const handleTemaSelect = useCallback((tema: any, periodoNombre: string) => {
-    console.log('📋 ========== CALLBACK onTemaSelect LLAMADO ==========');
-    console.log('📋 Dashboard recibió tema:', tema);
-    console.log('📋 Tema ID:', tema?.id);
-    console.log('📋 Tema nombre:', tema?.nombre);
-    console.log('📋 Periodo:', periodoNombre);
-    console.log('📋 Tema tiene subtemas?', tema?.subtemas?.length || 0);
-    console.log('📋 Subtemas:', tema?.subtemas);
+    debugLog('📋 ========== CALLBACK onTemaSelect LLAMADO ==========');
+    debugLog('📋 Dashboard recibió tema:', tema);
+    debugLog('📋 Tema ID:', tema?.id);
+    debugLog('📋 Tema nombre:', tema?.nombre);
+    debugLog('📋 Periodo:', periodoNombre);
+    debugLog('📋 Tema tiene subtemas?', tema?.subtemas?.length || 0);
+    debugLog('📋 Subtemas:', tema?.subtemas);
     
     // Validar que el tema existe y tiene la estructura correcta
     if (!tema || !tema.id) {
@@ -127,16 +136,16 @@ export default function Dashboard() {
       periodoNombre 
     };
     
-    console.log('📋 Estableciendo selectedTema:', temaData);
+    debugLog('📋 Estableciendo selectedTema:', temaData);
     
     // Usar una función de actualización para asegurar que se actualice correctamente
     setSelectedTema((prevState) => {
-      console.log('📋 setSelectedTema - Estado anterior:', prevState);
-      console.log('📋 setSelectedTema - Nuevo estado:', temaData);
+      debugLog('📋 setSelectedTema - Estado anterior:', prevState);
+      debugLog('📋 setSelectedTema - Nuevo estado:', temaData);
       return temaData;
     });
     
-    console.log('📋 setSelectedTema llamado, debería actualizar el estado');
+    debugLog('📋 setSelectedTema llamado, debería actualizar el estado');
   }, []);
 
   // Detectar tamaño de pantalla y ajustar sidebars
@@ -194,9 +203,9 @@ export default function Dashboard() {
   const [loadingAdminInfo, setLoadingAdminInfo] = useState(true);
 
   useEffect(() => {
-    console.log('🔍 Dashboard montado, user:', user?.id, 'loading:', loading);
+    debugLog('🔍 Dashboard montado, user:', user?.id, 'loading:', loading);
     if (!loading && !user) {
-      console.log('⚠️ No hay usuario, redirigiendo a /aula-virtual');
+      debugLog('⚠️ No hay usuario, redirigiendo a /aula-virtual');
       router.push('/aula-virtual');
     }
   }, [user, loading, router]);
@@ -221,12 +230,12 @@ export default function Dashboard() {
       return;
     }
     
-    console.log('🔍 Procesando parámetros de URL:', { contenidoId, mensajeId, temaId, materiaId });
+    debugLog('🔍 Procesando parámetros de URL:', { contenidoId, mensajeId, temaId, materiaId });
     
     // Si hay tema_id y materia_id pero no contenido_id, necesitamos buscar el contenido
     // Esto es para notificaciones antiguas o enlaces alternativos
     if ((userRole === 'profesor' || userRole === 'estudiante') && temaId && materiaId && !contenidoId) {
-      console.log('⚠️ URL tiene tema_id y materia_id pero no contenido_id, buscando contenido...');
+      debugLog('⚠️ URL tiene tema_id y materia_id pero no contenido_id, buscando contenido...');
       
       // Marcar que estamos cargando
       setCargandoContenidoDesdeNotificacion(true);
@@ -262,7 +271,7 @@ export default function Dashboard() {
           }
 
           // Usar la nueva API que obtiene el contenido directamente por tema_id
-          console.log('📥 Obteniendo contenido por tema_id:', temaId);
+          debugLog('📥 Obteniendo contenido por tema_id:', temaId);
           
           const response = await fetch(
             `/api/contenido/get-contenido-by-tema?tema_id=${temaId}`,
@@ -274,7 +283,7 @@ export default function Dashboard() {
           );
 
           const result = await response.json();
-          console.log('📥 Resultado de get-contenido-by-tema:', { 
+          debugLog('📥 Resultado de get-contenido-by-tema:', { 
             ok: response.ok, 
             status: response.status,
             error: result.error,
@@ -305,7 +314,7 @@ export default function Dashboard() {
             }
             
             if (contenidoEncontrado) {
-              console.log('✅ Contenido encontrado para tema:', contenidoEncontrado.id);
+              debugLog('✅ Contenido encontrado para tema:', contenidoEncontrado.id);
               
               const periodoNombre = temaData.periodos?.nombre || 'Periodo';
               const materiaIdFromTema = temaData.periodos?.materias?.id || materiaId;
@@ -328,7 +337,7 @@ export default function Dashboard() {
                 }]
               };
               
-              console.log('✅ Estableciendo tema desde tema_id/materia_id:', {
+              debugLog('✅ Estableciendo tema desde tema_id/materia_id:', {
                 temaId: temaConSubtema.id,
                 temaNombre: temaConSubtema.nombre,
                 subtemasCount: temaConSubtema.subtemas?.length,
@@ -350,7 +359,7 @@ export default function Dashboard() {
                 newUrl.searchParams.delete('materia_id');
                 newUrl.searchParams.delete('mensaje_id');
                 window.history.replaceState({}, '', newUrl.toString());
-                console.log('🧹 Parámetros de URL limpiados (tema_id/materia_id)');
+                debugLog('🧹 Parámetros de URL limpiados (tema_id/materia_id)');
               }, 1000);
             } else {
               console.warn('⚠️ No se encontró contenido para el tema especificado');
@@ -377,12 +386,12 @@ export default function Dashboard() {
     if ((userRole === 'profesor' || userRole === 'estudiante') && contenidoId) {
       // Evitar procesar múltiples veces el mismo contenido
       if (selectedContenidoId === contenidoId && selectedTema) {
-        console.log('ℹ️ Contenido ya está cargado, saltando...');
+        debugLog('ℹ️ Contenido ya está cargado, saltando...');
         setUrlParamsProcesados(true);
         return;
       }
 
-      console.log('✅ Contenido ID encontrado, cargando contenido...');
+      debugLog('✅ Contenido ID encontrado, cargando contenido...');
       
       // Marcar que estamos cargando contenido desde notificación
       setCargandoContenidoDesdeNotificacion(true);
@@ -401,7 +410,7 @@ export default function Dashboard() {
       // Cargar el contenido y abrir el tema correspondiente
       const cargarContenido = async () => {
         try {
-          console.log('📥 Iniciando carga de contenido...');
+          debugLog('📥 Iniciando carga de contenido...');
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) {
             console.error('❌ No hay sesión activa');
@@ -419,11 +428,11 @@ export default function Dashboard() {
           );
 
           const result = await response.json();
-          console.log('📥 Respuesta de API:', { ok: response.ok, error: result.error, tieneData: !!result.data });
+          debugLog('📥 Respuesta de API:', { ok: response.ok, error: result.error, tieneData: !!result.data });
           
           if (response.ok && result.data) {
             const contenido = result.data;
-            console.log('📥 Contenido cargado:', {
+            debugLog('📥 Contenido cargado:', {
               id: contenido.id,
               titulo: contenido.titulo,
               tieneSubtemas: !!contenido.subtemas,
@@ -435,10 +444,10 @@ export default function Dashboard() {
             const materiaId = contenido.subtemas?.temas?.periodos?.materias?.id;
             const materiaNombre = contenido.subtemas?.temas?.periodos?.materias?.nombre;
             
-            console.log('📥 Materia ID:', materiaId, 'Nombre:', materiaNombre);
+            debugLog('📥 Materia ID:', materiaId, 'Nombre:', materiaNombre);
             
             if (materiaId) {
-              console.log('✅ Estableciendo materia seleccionada:', materiaId, materiaNombre);
+              debugLog('✅ Estableciendo materia seleccionada:', materiaId, materiaNombre);
               setSelectedStudentSubjectId(materiaId);
               setSelectedStudentSubjectName(materiaNombre);
               
@@ -454,7 +463,7 @@ export default function Dashboard() {
                 };
                 
                 const periodoNombre = contenido.subtemas?.temas?.periodos?.nombre || 'Periodo';
-                console.log('✅ Estableciendo tema seleccionado:', {
+                debugLog('✅ Estableciendo tema seleccionado:', {
                   temaId: temaConSubtema.id,
                   temaNombre: temaConSubtema.nombre,
                   subtemasCount: temaConSubtema.subtemas?.length,
@@ -861,6 +870,23 @@ export default function Dashboard() {
               >
                 Dashboard
               </button>
+              {/* Mis Calificaciones - solo para estudiantes */}
+              {userRole === 'estudiante' && (
+                <button
+                  className={`menu-item ${activeMenu === 'mis-calificaciones' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveMenu('mis-calificaciones');
+                    setIsMobileMenuOpen(false);
+                    // Limpiar selección de contenido/tema para que no interfiera
+                    setSelectedTema(null);
+                    setSelectedEvaluacionId(null);
+                    setSelectedContenidoId(null);
+                    setSelectedMensajeId(null);
+                  }}
+                >
+                  Mis calificaciones
+                </button>
+              )}
               {/* Solo mostrar Gestionar Usuarios para administradores */}
               {userRole !== 'profesor' && userRole !== 'estudiante' && (
                 <div className="users-menu-dropdown">
@@ -1097,7 +1123,7 @@ export default function Dashboard() {
               onClose={() => setIsStudentSidebarOpen(false)}
               selectedSubjectId={selectedStudentSubjectId}
               onSubjectSelect={(id, name) => {
-                console.log('📚 Materia seleccionada:', id, name);
+                debugLog('📚 Materia seleccionada:', id, name);
                 setSelectedStudentSubjectId(id);
                 setSelectedStudentSubjectName(name);
                 setSelectedTema(null); // Limpiar tema cuando se cambia de materia
@@ -1256,7 +1282,7 @@ export default function Dashboard() {
             (() => {
               // Si estamos cargando contenido desde notificación, mostrar loading
               if (cargandoContenidoDesdeNotificacion) {
-                console.log('⏳ Cargando contenido desde notificación...');
+                debugLog('⏳ Cargando contenido desde notificación...');
                 return (
                   <div style={{ 
                     display: 'flex', 
@@ -1291,7 +1317,7 @@ export default function Dashboard() {
               const tieneTema = selectedTema && selectedTema.tema && selectedTema.tema.id;
               const tieneEvaluacion = selectedEvaluacionId !== null && selectedEvaluacionId !== undefined;
               
-              console.log('🎯 Dashboard profesor - Verificando renderizado:', {
+              debugLog('🎯 Dashboard profesor - Verificando renderizado:', {
                 tieneTema,
                 tieneEvaluacion,
                 cargandoContenidoDesdeNotificacion,
@@ -1311,8 +1337,8 @@ export default function Dashboard() {
               
               // Si hay tema o evaluación, mostrar StudentSubjectContent
               if (tieneTema || tieneEvaluacion) {
-                console.log('✅ Dashboard profesor - RENDERIZANDO StudentSubjectContent');
-                console.log('✅ Props que se pasan a StudentSubjectContent:', {
+                debugLog('✅ Dashboard profesor - RENDERIZANDO StudentSubjectContent');
+                debugLog('✅ Props que se pasan a StudentSubjectContent:', {
                   subjectId: selectedStudentSubjectId,
                   subjectName: selectedStudentSubjectName,
                   temaId: selectedTema?.tema?.id,
@@ -1342,8 +1368,8 @@ export default function Dashboard() {
                 );
               } else {
                 // Si no hay tema seleccionado, mostrar el dashboard normal del profesor
-                console.log('ℹ️ Dashboard profesor - Mostrando TeacherDashboard (no hay tema seleccionado)');
-                console.log('ℹ️ Razón:', {
+                debugLog('ℹ️ Dashboard profesor - Mostrando TeacherDashboard (no hay tema seleccionado)');
+                debugLog('ℹ️ Razón:', {
                   selectedTemaEsNull: selectedTema === null,
                   selectedTemaNoTieneTema: !selectedTema?.tema,
                   selectedTemaNoTieneId: !selectedTema?.tema?.id,
@@ -1430,13 +1456,15 @@ export default function Dashboard() {
             <AdminCalendar />
           ) : activeMenu === 'dashboard' && userRole === 'super_admin' ? (
             <AdminDashboard />
+          ) : activeMenu === 'mis-calificaciones' && userRole === 'estudiante' ? (
+            <StudentGradesView />
           ) : activeMenu === 'dashboard' && userRole === 'estudiante' ? (
             (() => {
               // Verificar si hay un tema seleccionado o una evaluación seleccionada
               const tieneTema = selectedTema && selectedTema.tema && selectedTema.tema.id;
               const tieneEvaluacion = selectedEvaluacionId !== null && selectedEvaluacionId !== undefined;
               
-              console.log('🔍 Dashboard - Verificación de tema y evaluación:', {
+              debugLog('🔍 Dashboard - Verificación de tema y evaluación:', {
                 selectedTema,
                 tieneTema,
                 temaId: selectedTema?.tema?.id,
@@ -1449,7 +1477,7 @@ export default function Dashboard() {
               
               // Si hay tema o evaluación, mostrar StudentSubjectContent
               if (tieneTema || tieneEvaluacion) {
-                console.log('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema, 'o evaluación:', selectedEvaluacionId);
+                debugLog('🎯 Dashboard renderizando StudentSubjectContent con tema:', selectedTema, 'o evaluación:', selectedEvaluacionId);
                 return (
                   <StudentSubjectContent
                     key={`content-${selectedTema?.tema?.id || selectedEvaluacionId || selectedContenidoId || 'default'}`}
@@ -1457,12 +1485,12 @@ export default function Dashboard() {
                     subjectName={selectedStudentSubjectName}
                     selectedTemaFromSidebar={selectedTema}
                     onTemaClear={() => {
-                      console.log('🔄 Limpiando tema desde dashboard');
+                      debugLog('🔄 Limpiando tema desde dashboard');
                       setSelectedTema(null);
                     }}
                     selectedEvaluacionId={selectedEvaluacionId}
                     onEvaluacionClear={() => {
-                      console.log('🔄 Limpiando evaluación desde dashboard');
+                      debugLog('🔄 Limpiando evaluación desde dashboard');
                       setSelectedEvaluacionId(null);
                     }}
                     selectedContenidoId={selectedContenidoId}
@@ -1470,10 +1498,10 @@ export default function Dashboard() {
                   />
                 );
               } else {
-                console.log('📺 Dashboard mostrando StudentInstitutionalVideo (no hay tema ni evaluación seleccionada)');
-                console.log('📺 selectedTema valor:', selectedTema);
-                console.log('📺 selectedTema.tema valor:', selectedTema?.tema);
-                console.log('📺 selectedEvaluacionId valor:', selectedEvaluacionId);
+                debugLog('📺 Dashboard mostrando StudentInstitutionalVideo (no hay tema ni evaluación seleccionada)');
+                debugLog('📺 selectedTema valor:', selectedTema);
+                debugLog('📺 selectedTema.tema valor:', selectedTema?.tema);
+                debugLog('📺 selectedEvaluacionId valor:', selectedEvaluacionId);
                 return (
                   <StudentInstitutionalVideo 
                     onContenidoSelect={(contenidoId: string) => {
@@ -1602,7 +1630,7 @@ export default function Dashboard() {
             subjectName={selectedStudentSubjectName}
             onTemaSelect={handleTemaSelect}
             onEvaluacionSelect={(evaluacionId) => {
-              console.log('🔄 Seleccionando evaluación desde sidebar:', evaluacionId);
+              debugLog('🔄 Seleccionando evaluación desde sidebar:', evaluacionId);
               setSelectedEvaluacionId(evaluacionId);
             }}
           />

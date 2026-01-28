@@ -150,20 +150,46 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Obtener todos los intentos completados del estudiante
+    // Obtener todos los intentos del estudiante y determinar cuáles quizzes están APROBADOS
+    // Regla de negocio: se considera APROBADO cuando la calificación es >= 3.7
+    const NOTA_MINIMA_APROBACION = 3.7;
+
     const todosLosQuizIds = Object.values(quizzesPorSubtema).flat();
-    let intentosCompletados: Set<string> = new Set();
+    // Guardar SOLO el ÚLTIMO intento completado de cada quiz (por fecha),
+    // y usar su calificación para decidir si está aprobado o no.
+    const ultimoIntentoPorQuiz: Record<string, { fecha: number; calificacion: number }> = {};
     
     if (todosLosQuizIds.length > 0) {
       const { data: intentos } = await supabaseAdmin
         .from('intentos_quiz')
-        .select('quiz_id')
+        .select('quiz_id, calificacion, completado, fecha_inicio, fecha_fin')
         .eq('estudiante_id', estudiante.id)
-        .eq('completado', true)
         .in('quiz_id', todosLosQuizIds);
 
       intentos?.forEach((intento: any) => {
-        intentosCompletados.add(intento.quiz_id);
+        if (!intento.completado) return;
+
+        const calificacionNumerica = intento.calificacion !== null && intento.calificacion !== undefined
+          ? parseFloat(intento.calificacion)
+          : null;
+
+        if (calificacionNumerica === null || Number.isNaN(calificacionNumerica)) {
+          return;
+        }
+
+        const fechaRef = intento.fecha_fin || intento.fecha_inicio;
+        if (!fechaRef) return;
+
+        const timestamp = new Date(fechaRef).getTime();
+        if (Number.isNaN(timestamp)) return;
+
+        const existing = ultimoIntentoPorQuiz[intento.quiz_id];
+        if (!existing || timestamp > existing.fecha) {
+          ultimoIntentoPorQuiz[intento.quiz_id] = {
+            fecha: timestamp,
+            calificacion: calificacionNumerica,
+          };
+        }
       });
     }
 
@@ -171,27 +197,29 @@ export async function GET(request: NextRequest) {
     const periodosSinDuplicados = (data || []).map((periodo: any) => {
       const temasDelPeriodo = periodo.temas || [];
       
-      // Determinar qué temas están completados (todos sus quizzes completados)
+      // Determinar qué temas están completados (todos sus quizzes APROBADOS)
       const temasCompletados: Record<string, boolean> = {};
       temasDelPeriodo.forEach((tema: any) => {
-        let todosLosQuizzesCompletados = true;
+        let todosLosQuizzesAprobados = true;
         let tieneQuizzes = false;
         
         tema.subtemas?.forEach((subtema: any) => {
           const quizIds = quizzesPorSubtema[subtema.id] || [];
           if (quizIds.length > 0) {
             tieneQuizzes = true;
-            const todosCompletados = quizIds.every((quizId: string) => 
-              intentosCompletados.has(quizId)
-            );
-            if (!todosCompletados) {
-              todosLosQuizzesCompletados = false;
+            const todosAprobados = quizIds.every((quizId: string) => {
+              const intento = ultimoIntentoPorQuiz[quizId];
+              return intento && intento.calificacion >= NOTA_MINIMA_APROBACION;
+            });
+            if (!todosAprobados) {
+              todosLosQuizzesAprobados = false;
             }
           }
         });
         
-        // Si no tiene quizzes, se considera completado
-        temasCompletados[tema.id] = !tieneQuizzes || todosLosQuizzesCompletados;
+        // Si no tiene quizzes, se considera completado.
+        // Si tiene quizzes, solo se considera completado cuando TODOS sus quizzes están APROBADOS.
+        temasCompletados[tema.id] = !tieneQuizzes || todosLosQuizzesAprobados;
       });
 
       // Determinar si todos los temas del periodo están completados

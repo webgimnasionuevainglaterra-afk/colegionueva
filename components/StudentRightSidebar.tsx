@@ -61,7 +61,10 @@ export default function StudentRightSidebar({
   onTemaSelect,
   onEvaluacionSelect,
 }: StudentRightSidebarProps) {
-  console.log('🔵 StudentRightSidebar renderizado con onTemaSelect:', !!onTemaSelect, typeof onTemaSelect);
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log('🔵 StudentRightSidebar renderizado con onTemaSelect:', !!onTemaSelect, typeof onTemaSelect);
+  }
   
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [loading, setLoading] = useState(false);

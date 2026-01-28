@@ -445,7 +445,11 @@ export default function EvaluationsResultsView() {
                               </td>
                               <td>
                                 {item.intento?.calificacion !== null && item.intento?.calificacion !== undefined ? (
-                                  <span className={`calificacion ${parseFloat(item.intento.calificacion) >= 3.0 ? 'aprobado' : 'reprobado'}`}>
+                                  <span
+                                    className={`calificacion ${
+                                      parseFloat(item.intento.calificacion) >= 3.7 ? 'aprobado' : 'reprobado'
+                                    }`}
+                                  >
                                     {parseFloat(item.intento.calificacion).toFixed(2)}
                                   </span>
                                 ) : (

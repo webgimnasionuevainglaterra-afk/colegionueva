@@ -44,6 +44,16 @@ export default function Home() {
               <Link href="/aula-virtual" className="card-button">
                 {t('home.seeCourses')}
               </Link>
+              {/* Acceso para acudientes: botón muy visible y claro */}
+              <Link href="/acudiente" className="card-acudiente-button">
+                <span className="card-acudiente-icon" aria-hidden="true">
+                  👨‍👩‍👧
+                </span>
+                <span className="card-acudiente-text">
+                  <span>Soy acudiente</span>
+                  <span>Ver calificaciones de mi hijo(a)</span>
+                </span>
+              </Link>
             </div>
           </div>
         </div>

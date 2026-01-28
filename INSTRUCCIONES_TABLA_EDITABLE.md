@@ -40,3 +40,5 @@ DROP TABLE IF EXISTS editable_content CASCADE;
 
 La tabla `editable_content` permite operaciones desde el servicio admin (SERVICE_ROLE_KEY) sin necesidad de autenticación de usuario, ya que solo se accede desde las rutas API del servidor.
 
+
+

@@ -268,6 +268,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Al finalizar el intento, desactivar cualquier override individual
+    // (evaluaciones_estudiantes) para que el estudiante no pueda volver a presentar
+    // a menos que el profesor lo active de nuevo.
+    try {
+      await supabaseAdmin
+        .from('evaluaciones_estudiantes')
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('evaluacion_id', intento.evaluacion_id)
+        .eq('estudiante_id', intento.estudiante_id);
+    } catch (overrideError) {
+      console.warn('No se pudo desactivar override individual de evaluación al finalizar intento:', overrideError);
+    }
+
     return NextResponse.json(
       { 
         data: intentoActualizado,

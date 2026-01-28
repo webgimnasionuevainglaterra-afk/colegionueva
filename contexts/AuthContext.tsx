@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserRole = async (userId: string) => {
     try {
-      // Verificar si el usuario es el super admin por su UID
+      // Verificar si el usuario es el super admin por su UID (fijo)
       if (userId === 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42') {
         setUserRole('super_admin');
         return;

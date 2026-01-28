@@ -66,7 +66,20 @@ export default function CoursesPerformanceView() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al cargar el rendimiento');
+        // Intentar obtener el mensaje de error detallado del backend
+        let errorMessage = 'Error al cargar el rendimiento';
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Ignorar errores al parsear el cuerpo
+        }
+
+        // Mostrar el error en la interfaz sin lanzar excepción para evitar el overlay rojo de Next
+        setError(errorMessage);
+        return;
       }
 
       const result = await response.json();
@@ -78,7 +91,7 @@ export default function CoursesPerformanceView() {
         }
       }
     } catch (err: any) {
-      console.error('Error al obtener rendimiento:', err);
+      console.warn('Error al obtener rendimiento:', err?.message || err);
       setError(err.message || 'Error al cargar el rendimiento');
     } finally {
       setLoading(false);
@@ -96,10 +109,11 @@ export default function CoursesPerformanceView() {
   };
 
   const getColorByScore = (score: number) => {
-    if (score >= 4) return { bg: '#d1fae5', text: '#065f46', label: 'Excelente' };
-    if (score >= 3) return { bg: '#fef3c7', text: '#92400e', label: 'Bueno' };
-    if (score >= 2) return { bg: '#fed7aa', text: '#9a3412', label: 'Regular' };
-    return { bg: '#fee2e2', text: '#991b1b', label: 'Bajo' };
+    // Colores basados en misma lógica que estudiantes:
+    // >= 3.7 aprobado (verde), 3.0–3.69 en riesgo (amarillo), < 3.0 bajo (rojo).
+    if (score >= 3.7) return { bg: '#d1fae5', text: '#065f46', label: 'Aprobado (≥ 3.7)' };
+    if (score >= 3.0) return { bg: '#fef3c7', text: '#92400e', label: 'En riesgo (3.0 – 3.69)' };
+    return { bg: '#fee2e2', text: '#991b1b', label: 'Bajo (< 3.0)' };
   };
 
   if (loading) {

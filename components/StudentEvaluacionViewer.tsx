@@ -624,14 +624,14 @@ export default function StudentEvaluacionViewer({ evaluacionId, onClose, onCompl
               El tiempo se agotó, pero tus respuestas fueron guardadas.
             </p>
           )}
-          <div
-            style={{
-              fontSize: '3rem',
-              fontWeight: 700,
-              color: calificacion >= 3.0 ? '#10b981' : '#ef4444',
-              marginBottom: '1.5rem',
-            }}
-          >
+        <div
+          style={{
+            fontSize: '3rem',
+            fontWeight: 700,
+            color: calificacion >= 3.7 ? '#10b981' : '#ef4444',
+            marginBottom: '1.5rem',
+          }}
+        >
             {calificacion.toFixed(2)} / 5.0
           </div>
           {respuestasDetalladas.length > 0 && (

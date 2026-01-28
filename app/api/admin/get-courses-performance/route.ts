@@ -24,18 +24,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar que sea super administrador
-    const { data: admin, error: adminError } = await supabaseAdmin
-      .from('administrators')
-      .select('role')
-      .eq('id', user.id)
-      .eq('role', 'super_admin')
-      .single();
+    // UID fijo del super administrador (el mismo que se usa en AuthContext)
+    const SUPER_ADMIN_ID = 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42';
 
-    if (adminError || !admin) {
-      return NextResponse.json(
-        { error: 'No tienes permiso para acceder a esta función' },
-        { status: 403 }
-      );
+    if (user.id !== SUPER_ADMIN_ID) {
+      const { data: admin, error: adminError } = await supabaseAdmin
+        .from('administrators')
+        .select('role')
+        .eq('id', user.id)
+        .eq('role', 'super_admin')
+        .single();
+
+      if (adminError || !admin) {
+        return NextResponse.json(
+          { error: 'No tienes permiso para acceder a esta función' },
+          { status: 403 }
+        );
+      }
     }
 
     // Obtener todos los cursos
@@ -214,13 +219,10 @@ export async function GET(request: NextRequest) {
               }
             }
 
-            // Calcular promedio general
-            const promedios = [];
-            if (promedioQuizzes > 0) promedios.push(promedioQuizzes);
-            if (promedioEvaluaciones > 0) promedios.push(promedioEvaluaciones);
-            const promedioGeneral = promedios.length > 0
-              ? promedios.reduce((sum, p) => sum + p, 0) / promedios.length
-              : 0;
+            // Calcular promedio general ponderado:
+            // 70% quizes, 30% evaluaciones. Si no hay quizes o evaluaciones,
+            // se considera 0 para ese componente.
+            const promedioGeneral = (promedioQuizzes * 0.7) + (promedioEvaluaciones * 0.3);
 
             // Calcular estudiantes activos (que han completado al menos un quiz o evaluación)
             const estudiantesActivos = new Set([

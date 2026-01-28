@@ -284,6 +284,48 @@
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
 }
 
+/* Botón especial para acudientes (personas mayores) */
+.card-acudiente-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1.6rem;
+  border-radius: 9999px;
+  background: #fbbf24; /* Amarillo cálido, muy visible */
+  color: #111827;
+  font-family: var(--font-nunito-sans), sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(17, 24, 39, 0.15);
+}
+
+.card-acudiente-button:hover {
+  background: #f59e0b;
+  transform: translateY(-2px);
+}
+
+.card-acudiente-icon {
+  font-size: 1.3rem;
+}
+
+.card-acudiente-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.card-acudiente-text span:first-child {
+  font-size: 1.05rem;
+}
+
+.card-acudiente-text span:last-child {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .cards-grid {

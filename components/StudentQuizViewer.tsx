@@ -628,7 +628,7 @@ export default function StudentQuizViewer({ quizId, onClose, onComplete }: Stude
             style={{
               fontSize: '3rem',
               fontWeight: 700,
-              color: calificacion >= 3.0 ? '#10b981' : '#ef4444',
+              color: calificacion >= 3.7 ? '#10b981' : '#ef4444',
               marginBottom: '1.5rem',
             }}
           >

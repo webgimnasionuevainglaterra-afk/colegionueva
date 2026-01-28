@@ -20,3 +20,5 @@ CREATE POLICY "Service role can manage editable content"
   USING (true)
   WITH CHECK (true);
 
+
+

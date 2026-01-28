@@ -25,7 +25,7 @@ interface CalificacionesMateria {
   materia_nombre: string;
   quizzes: CalificacionQuiz[];
   evaluaciones: CalificacionEvaluacion[];
-  promedio: number;
+  promedio: number; // Nota final ponderada (70% quices, 30% evaluaciones)
 }
 
 export default function StudentGradesView() {
@@ -93,9 +93,21 @@ export default function StudentGradesView() {
   };
 
   const getColorByCalificacion = (calificacion: number) => {
-    if (calificacion >= 4.0) return '#10b981'; // Verde
-    if (calificacion >= 3.0) return '#f59e0b'; // Amarillo
-    return '#ef4444'; // Rojo
+    if (calificacion >= 3.7) return '#10b981'; // Verde (aprueba)
+    if (calificacion >= 3.0) return '#f59e0b'; // Amarillo (en riesgo)
+    return '#ef4444'; // Rojo (reprueba)
+  };
+
+  const calcularPromedioQuizzes = (materia: CalificacionesMateria) => {
+    if (materia.quizzes.length === 0) return 0;
+    const suma = materia.quizzes.reduce((acc, q) => acc + q.calificacion, 0);
+    return suma / materia.quizzes.length;
+  };
+
+  const calcularPromedioEvaluaciones = (materia: CalificacionesMateria) => {
+    if (materia.evaluaciones.length === 0) return 0;
+    const suma = materia.evaluaciones.reduce((acc, e) => acc + e.calificacion, 0);
+    return suma / materia.evaluaciones.length;
   };
 
   if (loading) {
@@ -138,7 +150,11 @@ export default function StudentGradesView() {
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {calificaciones.map((materia) => (
+        {calificaciones.map((materia) => {
+          const promedioQuizzes = calcularPromedioQuizzes(materia);
+          const promedioEvaluaciones = calcularPromedioEvaluaciones(materia);
+
+          return (
           <div
             key={materia.materia_id}
             style={{
@@ -170,31 +186,43 @@ export default function StudentGradesView() {
               >
                 {materia.materia_nombre}
               </h3>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <span
+              <div>
+                <div
                   style={{
-                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#6b7280',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Nota final:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: getColorByCalificacion(materia.promedio),
+                    }}
+                  >
+                    {materia.promedio.toFixed(2)} / 5.0
+                  </span>
+                </div>
+                <div
+                  style={{
+                    marginTop: '0.25rem',
+                    fontSize: '0.75rem',
                     color: '#6b7280',
-                    fontWeight: 500,
                   }}
                 >
-                  Promedio:
-                </span>
-                <span
-                  style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    color: getColorByCalificacion(materia.promedio),
-                  }}
-                >
-                  {materia.promedio.toFixed(2)} / 5.0
-                </span>
+                  Prom. quices ({'70%'}): <strong>{promedioQuizzes.toFixed(2)}</strong> &nbsp;|&nbsp;
+                  Prom. evaluaciones ({'30%'}): <strong>{promedioEvaluaciones.toFixed(2)}</strong>
+                </div>
               </div>
             </div>
 
@@ -345,7 +373,7 @@ export default function StudentGradesView() {
               </p>
             )}
           </div>
-        ))}
+        );})}
       </div>
     </div>
   );

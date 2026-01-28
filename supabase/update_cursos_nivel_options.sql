@@ -14,3 +14,5 @@ ALTER TABLE cursos ADD CONSTRAINT cursos_nivel_check
 
 
 
+
+

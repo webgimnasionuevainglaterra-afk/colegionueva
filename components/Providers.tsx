@@ -6,6 +6,7 @@ import { EditModeProvider } from '@/contexts/EditModeContext';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import EditModeToggle from '@/components/EditModeToggle';
 import LockModal from '@/components/LockModal';
+import EditModeBanner from '@/components/EditModeBanner';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <ConditionalLayout>
             {children}
           </ConditionalLayout>
+          <EditModeBanner />
           <EditModeToggle />
           <LockModal />
         </EditModeProvider>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { useAuth } from '@/contexts/AuthContext';
 import StudentQuizViewer from './StudentQuizViewer';
@@ -891,9 +891,12 @@ export default function StudentSubjectContent({
             );
             const result = await response.json();
             if (response.ok && result.data) {
-              // Filtrar solo evaluaciones activas
+              // Importante:
+              // Aquí NO filtramos por is_active, porque el acceso puede ser
+              // activado/desactivado individualmente por estudiante.
+              // La lógica fina de disponibilidad se maneja en EvaluationAvailabilityButton.
               const evaluacionesArray = Array.isArray(result.data) ? result.data : [result.data];
-              evaluaciones[periodo.id] = evaluacionesArray.filter((e: Evaluacion) => e.is_active !== false);
+              evaluaciones[periodo.id] = evaluacionesArray;
             } else {
               evaluaciones[periodo.id] = [];
             }
@@ -935,8 +938,15 @@ export default function StudentSubjectContent({
             const response = await fetch(`/api/quizzes/get-quiz?subtema_id=${subtema.id}`);
             const result = await response.json();
             if (response.ok && result.data) {
-              // Filtrar solo quices activos
-              quizzes[subtema.id] = result.data.filter((q: Quiz) => q.is_active !== false);
+              // Importante:
+              // NO filtramos por is_active aquí, porque el profesor puede activar/desactivar
+              // quices de forma individual para cada estudiante (quizzes_estudiantes).
+              // La lógica final de si se puede presentar o no el quiz
+              // se maneja en QuizAvailabilityButton usando:
+              // - is_active global
+              // - override individual (has_individual_access)
+              // - fechas de inicio/fin.
+              quizzes[subtema.id] = result.data;
             } else {
               quizzes[subtema.id] = [];
             }
@@ -1053,7 +1063,10 @@ export default function StudentSubjectContent({
             handleSetSelectedEvaluacionId(null);
           }}
           onComplete={(calificacion) => {
-            console.log('Evaluación completada con calificación:', calificacion);
+            if (process.env.NODE_ENV !== 'production') {
+              // eslint-disable-next-line no-console
+              console.log('Evaluación completada con calificación:', calificacion);
+            }
             // NO cerrar automáticamente - dejar que el usuario vea el resumen y cierre cuando quiera
           }}
         />
@@ -1455,13 +1468,11 @@ export default function StudentSubjectContent({
                             borderRadius: '8px',
                             border: '1px solid #e5e7eb'
                           }}>
-                            {useMemo(() => (
-                              <PreguntasRespuestas
-                                key={contenido.id}
-                                contenidoId={contenido.id}
-                                contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
-                              />
-                            ), [contenido.id, contenido.titulo])}
+                            <PreguntasRespuestas
+                              key={contenido.id}
+                              contenidoId={contenido.id}
+                              contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
+                            />
                           </div>
                         </div>
                       ))}
@@ -2004,21 +2015,19 @@ export default function StudentSubjectContent({
             )}
 
             {/* Preguntas y Respuestas */}
-            <div style={{ 
-              marginTop: '2rem', 
-              background: '#f9fafb', 
-              padding: '1rem', 
-              borderRadius: '8px',
-              border: '1px solid #e5e7eb'
-            }}>
-              {useMemo(() => (
-                <PreguntasRespuestas
-                  key={selectedContent.id}
-                  contenidoId={selectedContent.id}
-                  contenidoTitulo={`Preguntas sobre: ${selectedContent.titulo}`}
-                />
-              ), [selectedContent.id, selectedContent.titulo])}
-            </div>
+      <div style={{ 
+        marginTop: '2rem', 
+        background: '#f9fafb', 
+        padding: '1rem', 
+        borderRadius: '8px',
+        border: '1px solid #e5e7eb'
+      }}>
+        <PreguntasRespuestas
+          key={selectedContent.id}
+          contenidoId={selectedContent.id}
+          contenidoTitulo={`Preguntas sobre: ${selectedContent.titulo}`}
+        />
+      </div>
           </div>
           )
         ) : (
@@ -2303,13 +2312,11 @@ export default function StudentSubjectContent({
                                 borderRadius: '8px',
                                 border: '1px solid #e5e7eb'
                               }}>
-                                {useMemo(() => (
-                                  <PreguntasRespuestas
-                                    key={contenido.id}
-                                    contenidoId={contenido.id}
-                                    contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
-                                  />
-                                ), [contenido.id, contenido.titulo])}
+                                <PreguntasRespuestas
+                                  key={contenido.id}
+                                  contenidoId={contenido.id}
+                                  contenidoTitulo={`Preguntas sobre: ${contenido.titulo}`}
+                                />
                               </div>
                             </div>
                           ))}

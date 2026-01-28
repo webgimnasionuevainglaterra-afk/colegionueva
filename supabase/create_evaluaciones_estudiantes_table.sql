@@ -25,3 +25,5 @@ COMMENT ON COLUMN evaluaciones_estudiantes.activado_por IS 'ID del profesor o ad
 
 
 
+
+

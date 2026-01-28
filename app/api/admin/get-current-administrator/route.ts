@@ -75,10 +75,12 @@ export async function GET(request: NextRequest) {
     if (!adminError && adminData) {
       // Determinar el rol a mostrar
       let roleDisplay = 'Administrador';
-      if (user.id === 'dfdca86b-187f-49c2-8fe5-ee735a2a6d42') {
+      if (adminData.role === 'super_admin') {
         roleDisplay = 'Super administrador';
+      } else if (adminData.role === 'administrator') {
+        roleDisplay = 'Administrador';
       } else if (adminData.role) {
-        roleDisplay = adminData.role === 'administrator' ? 'Administrador' : adminData.role;
+        roleDisplay = adminData.role;
       }
 
       return NextResponse.json(

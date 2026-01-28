@@ -52,6 +52,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar si hay un override individual de activación para este estudiante
+    // Esto permite que, si el profesor "reactiva" el quiz para un estudiante,
+    // pueda presentar nuevamente aunque ya tenga un intento completado.
+    let tieneOverrideActivo = false;
+    try {
+      const { data: registroIndividual } = await supabaseAdmin
+        .from('quizzes_estudiantes')
+        .select('is_active')
+        .eq('quiz_id', quiz_id)
+        .eq('estudiante_id', estudiante_id)
+        .maybeSingle();
+
+      if (registroIndividual && registroIndividual.is_active === true) {
+        tieneOverrideActivo = true;
+      }
+    } catch (e) {
+      // Si falla esta consulta, no bloqueamos el flujo principal; simplemente
+      // asumimos que no hay override y seguimos con la lógica normal.
+      console.warn('No se pudo verificar override individual de quiz:', e);
+    }
+
     // Verificar si ya existe un intento
     const { data: intentoExistente } = await supabaseAdmin
       .from('intentos_quiz')
@@ -62,24 +83,69 @@ export async function POST(request: NextRequest) {
 
     if (intentoExistente) {
       if (intentoExistente.completado) {
-        // Retornar el ID del intento completado para que el frontend pueda obtener los detalles
+        // Si ya estaba completado pero NO hay override individual activo,
+        // se mantiene el comportamiento anterior: no permitir nuevo intento.
+        if (!tieneOverrideActivo) {
+          return NextResponse.json(
+            { 
+              error: 'Ya has completado este quiz',
+              intento_id: intentoExistente.id,
+              ya_completado: true
+            },
+            { status: 400 }
+          );
+        }
+
+        // Si hay override activo, reutilizar el mismo intento:
+        // - borrar respuestas anteriores
+        // - resetear calificación y fechas
+        const { error: deleteError } = await supabaseAdmin
+          .from('respuestas_estudiante')
+          .delete()
+          .eq('intento_id', intentoExistente.id);
+
+        if (deleteError) {
+          console.error('Error al borrar respuestas anteriores del intento:', deleteError);
+          return NextResponse.json(
+            { error: deleteError.message || 'Error al preparar el nuevo intento' },
+            { status: 500 }
+          );
+        }
+
+        const { data: intentoReseteado, error: resetError } = await supabaseAdmin
+          .from('intentos_quiz')
+          .update({
+            fecha_inicio: ahora.toISOString(),
+            fecha_fin: null,
+            calificacion: null,
+            completado: false,
+          })
+          .eq('id', intentoExistente.id)
+          .select()
+          .single();
+
+        if (resetError || !intentoReseteado) {
+          console.error('Error al resetear intento:', resetError);
+          return NextResponse.json(
+            { error: resetError?.message || 'Error al reiniciar el intento' },
+            { status: 500 }
+          );
+        }
+
         return NextResponse.json(
-          { 
-            error: 'Ya has completado este quiz',
-            intento_id: intentoExistente.id,
-            ya_completado: true
-          },
-          { status: 400 }
+          { data: intentoReseteado },
+          { status: 200 }
+        );
+      } else {
+        // Si el intento existente no está completado, se reutiliza tal cual
+        return NextResponse.json(
+          { data: intentoExistente },
+          { status: 200 }
         );
       }
-      // Retornar el intento existente
-      return NextResponse.json(
-        { data: intentoExistente },
-        { status: 200 }
-      );
     }
 
-    // Crear nuevo intento
+    // Crear nuevo intento (primer intento)
     const { data: intento, error: intentoError } = await supabaseAdmin
       .from('intentos_quiz')
       .insert({

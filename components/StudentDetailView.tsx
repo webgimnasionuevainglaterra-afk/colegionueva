@@ -459,7 +459,8 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
               const evaluaciones = evaluacionesPorMateria[materia] || [];
               const promedioQuizes = calcularPromedioPorMateria(quizes);
               const promedioEvaluaciones = calcularPromedioPorMateria(evaluaciones);
-              const promedioGeneral = (promedioQuizes + promedioEvaluaciones) / 2 || (promedioQuizes || promedioEvaluaciones);
+              // Promedio general ponderado: 70% quizes, 30% evaluaciones.
+              const promedioGeneral = (promedioQuizes * 0.7) + (promedioEvaluaciones * 0.3);
 
               return (
                 <div key={materia} style={{
