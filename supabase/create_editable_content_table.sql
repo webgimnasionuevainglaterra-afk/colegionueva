@@ -24,6 +24,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger para actualizar updated_at
+-- Eliminar el trigger si ya existe antes de crearlo
+DROP TRIGGER IF EXISTS update_editable_content_updated_at ON editable_content;
 CREATE TRIGGER update_editable_content_updated_at
   BEFORE UPDATE ON editable_content
   FOR EACH ROW
