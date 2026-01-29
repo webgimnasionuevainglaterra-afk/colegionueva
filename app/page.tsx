@@ -93,13 +93,17 @@ export default function Home() {
                   <svg className="feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>{t('home.certificateOnCompletion')}</span>
+                  <EditableText contentKey="video-feature-certificate" tag="span">
+                    {t('home.certificateOnCompletion')}
+                  </EditableText>
                 </div>
                 <div className="video-feature">
                   <svg className="feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>{t('home.unlimitedAccess')}</span>
+                  <EditableText contentKey="video-feature-unlimited" tag="span">
+                    {t('home.unlimitedAccess')}
+                  </EditableText>
                 </div>
               </div>
             </div>
