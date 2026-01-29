@@ -149,9 +149,16 @@ export default function EditableText({
     }
   };
 
-  if (!isEditMode) {
+  // Mientras carga, mostrar children por defecto
+  if (loading) {
     const Tag = tag as any;
     return <Tag className={className}>{children}</Tag>;
+  }
+
+  if (!isEditMode) {
+    // Cuando NO está en modo edición, mostrar el contenido guardado (o children si no hay guardado)
+    const Tag = tag as any;
+    return <Tag className={className}>{content}</Tag>;
   }
 
   if (isEditing) {
