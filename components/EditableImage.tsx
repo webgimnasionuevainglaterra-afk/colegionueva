@@ -105,15 +105,31 @@ export default function EditableImage({
             content: data.url,
           }),
         });
+
+        const saveData = await saveResponse.json();
         
         if (saveResponse.ok) {
           console.log('✅ URL guardada en la base de datos');
+          // Mostrar mensaje de éxito temporal
+          const successMsg = document.createElement('div');
+          successMsg.textContent = '✅ Imagen guardada';
+          successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+          document.body.appendChild(successMsg);
+          setTimeout(() => successMsg.remove(), 2000);
         } else {
-          console.error('❌ Error al guardar la URL en la base de datos');
+          console.error('❌ Error al guardar la URL en la base de datos:', saveData);
+          // Mostrar mensaje de error más específico
+          if (saveData.error?.includes('no existe')) {
+            alert('❌ Error: La tabla editable_content no existe en Supabase. Por favor, ejecuta el script SQL: supabase/create_editable_content_table.sql');
+          } else if (saveData.error?.includes('permisos')) {
+            alert('❌ Error de permisos. Verifica las políticas RLS de la tabla editable_content.');
+          } else {
+            alert(`❌ Error al guardar la imagen: ${saveData.error || 'Error desconocido'}`);
+          }
         }
       } else {
         console.error('❌ Error al subir imagen:', data.error);
-        alert(data.error || 'Error al subir la imagen');
+        alert(`❌ Error al subir la imagen: ${data.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error al subir imagen:', error);

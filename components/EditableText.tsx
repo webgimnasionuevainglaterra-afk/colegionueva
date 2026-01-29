@@ -94,7 +94,7 @@ export default function EditableText({
         await onSave(content);
       } else {
         // Guardar en la API por defecto
-        await fetch('/api/content/save-editable-content', {
+        const response = await fetch('/api/content/save-editable-content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -103,11 +103,34 @@ export default function EditableText({
             content: content,
           }),
         });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error('Error al guardar:', data);
+          // Mostrar mensaje de error más específico
+          if (data.error?.includes('no existe')) {
+            alert('❌ Error: La tabla editable_content no existe en Supabase. Por favor, ejecuta el script SQL: supabase/create_editable_content_table.sql');
+          } else if (data.error?.includes('permisos')) {
+            alert('❌ Error de permisos. Verifica las políticas RLS de la tabla editable_content.');
+          } else {
+            alert(`❌ Error al guardar: ${data.error || 'Error desconocido'}`);
+          }
+          return;
+        }
+
+        console.log('✅ Contenido guardado exitosamente:', data);
       }
       setIsEditing(false);
-    } catch (error) {
+      // Mostrar mensaje de éxito temporal
+      const successMsg = document.createElement('div');
+      successMsg.textContent = '✅ Guardado';
+      successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+      document.body.appendChild(successMsg);
+      setTimeout(() => successMsg.remove(), 2000);
+    } catch (error: any) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar el contenido');
+      alert(`❌ Error al guardar el contenido: ${error.message || 'Error desconocido'}`);
     } finally {
       setSaving(false);
     }
