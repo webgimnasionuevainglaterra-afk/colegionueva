@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import '../app/css/admin-sidebar.css';
@@ -30,28 +30,6 @@ export default function AdminSidebar({ onStudentClick, isOpen = true, onClose }:
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchStudents();
-    
-    // Actualizar el estado online periódicamente (cada 10 segundos)
-    const refreshInterval = setInterval(() => {
-      fetchStudents();
-    }, 10000); // 10 segundos
-
-    return () => {
-      clearInterval(refreshInterval);
-    };
-  }, []);
-
-  // Buscar estudiantes cuando cambia el query
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchStudents();
-    }, 300); // Debounce de 300ms
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
 
   const fetchStudents = async () => {
     try {
@@ -86,6 +64,78 @@ export default function AdminSidebar({ onStudentClick, isOpen = true, onClose }:
       setLoading(false);
     }
   };
+
+  // Función para actualizar solo el estado online sin recargar toda la lista
+  const updateOnlineStatus = useCallback(async () => {
+    // No actualizar si hay búsqueda activa
+    if (searchQuery) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Obtener todos los estudiantes (sin query) para actualizar solo el estado online
+      const response = await fetch('/api/admin/search-students', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        // Solo actualizar el estado online, no recargar toda la lista si no hay cambios
+        setEstudiantes(prev => {
+          const nuevosEstudiantes = result.data || [];
+          // Si la lista es la misma (mismo número de elementos y mismos IDs), solo actualizar is_online
+          if (prev.length === nuevosEstudiantes.length && 
+              prev.every((e, i) => e.id === nuevosEstudiantes[i]?.id)) {
+            return prev.map((estudiante, i) => ({
+              ...estudiante,
+              is_online: nuevosEstudiantes[i]?.is_online
+            }));
+          }
+          // Si hay cambios en la lista, actualizar todo
+          return nuevosEstudiantes;
+        });
+      }
+    } catch (err) {
+      console.error('Error al actualizar estado online:', err);
+    }
+  }, [searchQuery]);
+
+  // Cargar estudiantes inicialmente
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  // Actualizar el estado online periódicamente (cada 30 segundos, solo si no hay búsqueda activa)
+  useEffect(() => {
+    if (searchQuery) return; // No actualizar si hay búsqueda activa
+    
+    const refreshInterval = setInterval(() => {
+      updateOnlineStatus();
+    }, 30000); // 30 segundos (aumentado de 10 a 30)
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [searchQuery, updateOnlineStatus]);
+
+  // Buscar estudiantes cuando cambia el query
+  useEffect(() => {
+    if (!searchQuery) {
+      fetchStudents(); // Si se limpia la búsqueda, recargar lista completa
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      fetchStudents();
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   return (
     <>

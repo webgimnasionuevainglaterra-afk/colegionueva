@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import '../app/css/admin-sidebar.css';
@@ -29,19 +29,6 @@ interface Profesor {
 export default function AdminRightSidebar({ onTeacherClick, isOpen = true, onClose }: AdminRightSidebarProps) {
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchTeachers();
-    
-    // Actualizar el estado online periódicamente (cada 10 segundos)
-    const refreshInterval = setInterval(() => {
-      fetchTeachers();
-    }, 10000); // 10 segundos
-
-    return () => {
-      clearInterval(refreshInterval);
-    };
-  }, []);
 
   const fetchTeachers = async () => {
     try {
@@ -73,6 +60,58 @@ export default function AdminRightSidebar({ onTeacherClick, isOpen = true, onClo
       setLoading(false);
     }
   };
+
+  // Función para actualizar solo el estado online sin recargar toda la lista
+  const updateOnlineStatus = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/teachers/get-teachers', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (response.ok && result.data) {
+        // Solo actualizar el estado online, no recargar toda la lista si no hay cambios
+        setProfesores(prev => {
+          const nuevosProfesores = result.data || [];
+          // Si la lista es la misma (mismo número de elementos y mismos IDs), solo actualizar is_online
+          if (prev.length === nuevosProfesores.length && 
+              prev.every((p, i) => p.id === nuevosProfesores[i]?.id)) {
+            return prev.map((profesor, i) => ({
+              ...profesor,
+              is_online: nuevosProfesores[i]?.is_online
+            }));
+          }
+          // Si hay cambios en la lista, actualizar todo
+          return nuevosProfesores;
+        });
+      }
+    } catch (err) {
+      console.error('Error al actualizar estado online:', err);
+    }
+  }, []);
+
+  // Cargar profesores inicialmente
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
+
+  // Actualizar el estado online periódicamente (cada 30 segundos)
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      updateOnlineStatus();
+    }, 30000); // 30 segundos (aumentado de 10 a 30)
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [updateOnlineStatus]);
 
   return (
     <>

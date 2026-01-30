@@ -27,6 +27,76 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validar permisos del profesor (si es profesor)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+      
+      if (!userError && user) {
+        // Verificar si es profesor
+        const { data: profesor, error: profesorError } = await supabaseAdmin
+          .from('profesores')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profesorError && profesor) {
+          // Si es profesor, verificar que el subtema pertenece a un curso asignado
+          const { data: subtemaData, error: subtemaError } = await supabaseAdmin
+            .from('subtemas')
+            .select(`
+              id,
+              tema_id,
+              temas (
+                id,
+                periodo_id,
+                periodos (
+                  id,
+                  materia_id,
+                  materias (
+                    id,
+                    curso_id
+                  )
+                )
+              )
+            `)
+            .eq('id', subtema_id)
+            .single();
+
+          if (subtemaError || !subtemaData) {
+            return NextResponse.json(
+              { error: 'Subtema no encontrado' },
+              { status: 404 }
+            );
+          }
+
+          const cursoId = subtemaData.temas?.periodos?.materias?.curso_id;
+          if (!cursoId) {
+            return NextResponse.json(
+              { error: 'No se pudo determinar el curso del subtema' },
+              { status: 400 }
+            );
+          }
+
+          // Verificar que el profesor tiene asignado este curso
+          const { data: cursoAsignado, error: cursoError } = await supabaseAdmin
+            .from('profesores_cursos')
+            .select('id')
+            .eq('profesor_id', user.id)
+            .eq('curso_id', cursoId)
+            .single();
+
+          if (cursoError || !cursoAsignado) {
+            return NextResponse.json(
+              { error: 'No tienes permiso para crear contenido en este curso' },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     // Obtener el máximo orden actual para este subtema
     const { data: existingContenido } = await supabaseAdmin
       .from('contenido')
