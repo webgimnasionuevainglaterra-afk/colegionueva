@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // Importación dinámica para evitar problemas con Turbopack
 const XLSX = require('xlsx');
 
-// Configurar el tamaño máximo del body (50MB)
+// Configurar el tamaño máximo del body (100MB)
 export const maxDuration = 300; // 5 minutos
 export const runtime = 'nodejs';
 

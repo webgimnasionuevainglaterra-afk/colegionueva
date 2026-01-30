@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Configurar tiempo máximo para subidas grandes (5 minutos)
+export const maxDuration = 300;
+export const runtime = 'nodejs';
+
+// Tamaño máximo por archivo: 100MB (coincide con el límite del bucket en Supabase)
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB en bytes
+
 const getSupabaseAdmin = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -43,14 +50,32 @@ export async function POST(request: NextRequest) {
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
 
     const uploadedFiles = [];
+    const invalidFiles: Array<{ name: string; reason: string }> = [];
 
     for (const file of files) {
+      // Validar tamaño de archivo
+      if (file.size > MAX_FILE_SIZE) {
+        const maxSizeMB = MAX_FILE_SIZE / 1024 / 1024;
+        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+        invalidFiles.push({
+          name: file.name,
+          reason: `El archivo es demasiado grande (${fileSizeMB}MB). El tamaño máximo permitido es ${maxSizeMB}MB.`
+        });
+        console.warn(`❌ Archivo ${file.name} excede el tamaño máximo: ${fileSizeMB}MB > ${maxSizeMB}MB`);
+        continue;
+      }
+
       // Validar tipo de archivo
       const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
       const isValidType = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExt);
       
       if (!isValidType) {
-        continue; // Saltar archivos no válidos
+        invalidFiles.push({
+          name: file.name,
+          reason: `Tipo de archivo no permitido. Solo se permiten PDF, JPG y PNG. Tipo detectado: ${file.type || 'desconocido'}`
+        });
+        console.warn(`❌ Archivo ${file.name} tiene tipo no permitido: ${file.type || fileExt}`);
+        continue;
       }
 
       // Generar nombre único para el archivo
@@ -117,6 +142,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (uploadedFiles.length === 0) {
+      // Si hay archivos inválidos, reportarlos
+      if (invalidFiles.length > 0) {
+        return NextResponse.json(
+          { 
+            error: 'No se pudieron subir los archivos',
+            invalidFiles: invalidFiles,
+            message: `${invalidFiles.length} archivo(s) no válido(s). Ver detalles en invalidFiles.`
+          },
+          { status: 400 }
+        );
+      }
+
       // Verificar si el bucket existe
       const { data: buckets, error: bucketsError } = await supabaseAdmin.storage.listBuckets();
       let bucketExists = false;
@@ -129,13 +166,18 @@ export async function POST(request: NextRequest) {
       if (!bucketExists) {
         errorMessage += 'El bucket "contenido" no existe en Supabase Storage. Por favor, créalo desde el dashboard de Supabase.';
       } else {
-        errorMessage += 'Asegúrate de que los archivos sean PDF, JPG o PNG y que no excedan el tamaño máximo permitido.';
+        errorMessage += 'Asegúrate de que los archivos sean PDF, JPG o PNG y que no excedan el tamaño máximo de 100MB.';
       }
       
       return NextResponse.json(
         { error: errorMessage },
         { status: 400 }
       );
+    }
+
+    // Si algunos archivos se subieron pero otros no, reportar los inválidos
+    if (invalidFiles.length > 0) {
+      console.warn(`⚠️ Se subieron ${uploadedFiles.length} archivo(s) pero ${invalidFiles.length} archivo(s) fueron rechazados:`, invalidFiles);
     }
 
     // Extraer solo las URLs para compatibilidad
@@ -152,6 +194,8 @@ export async function POST(request: NextRequest) {
         success: true, 
         files: uploadedFiles,
         urls: urls, // También devolver urls directamente para compatibilidad
+        invalidFiles: invalidFiles.length > 0 ? invalidFiles : undefined, // Incluir archivos inválidos si los hay
+        warnings: invalidFiles.length > 0 ? `${invalidFiles.length} archivo(s) fueron rechazados` : undefined
       },
       { status: 200 }
     );
@@ -167,8 +211,10 @@ export async function POST(request: NextRequest) {
       errorMessage = 'El bucket "contenido" no existe en Supabase Storage. Por favor, créalo desde el dashboard de Supabase.';
     } else if (error.message?.includes('permission') || error.message?.includes('row-level security')) {
       errorMessage = 'Error de permisos. Verifica las políticas RLS del bucket "contenido" en Supabase Storage.';
-    } else if (error.message?.includes('File size')) {
-      errorMessage = 'El archivo es demasiado grande. Por favor, sube un archivo más pequeño.';
+    } else if (error.message?.includes('File size') || error.message?.includes('too large') || error.message?.includes('413')) {
+      errorMessage = `El archivo es demasiado grande. El tamaño máximo permitido es ${MAX_FILE_SIZE / 1024 / 1024}MB por archivo.`;
+    } else if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT')) {
+      errorMessage = 'La subida del archivo tardó demasiado tiempo. Intenta con un archivo más pequeño o verifica tu conexión a internet.';
     }
     
     return NextResponse.json(
