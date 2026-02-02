@@ -169,15 +169,34 @@ export default function TeacherDetailView({ teacherId, onClose }: TeacherDetailV
         throw new Error('Error al descargar el quiz');
       }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `quiz-${quizId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
+      const htmlContent = await response.text();
+
+      // Crear una ventana nueva con el HTML y usar window.print() para generar PDF
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes.');
+      }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      // Esperar a que se cargue completamente el contenido antes de imprimir
+      printWindow.onload = () => {
+        // Esperar un poco más para asegurar que todas las imágenes y estilos se carguen
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+        }, 1000);
+      };
+
+      // Fallback: si onload no se dispara, intentar después de un tiempo
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          printWindow.focus();
+          printWindow.print();
+        }
+      }, 2000);
     } catch (err: any) {
       console.error('Error al descargar quiz:', err);
       alert('Error al descargar el quiz: ' + err.message);

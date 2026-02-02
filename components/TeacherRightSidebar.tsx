@@ -382,7 +382,6 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
       const response = await fetch(`/api/quizzes/download-pdf?quiz_id=${quizId}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'text/html',
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
@@ -392,22 +391,36 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
         throw new Error(errorText || 'Error al generar el PDF');
       }
 
-      // Obtener el HTML directamente
+      // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
       const htmlContent = await response.text();
 
       // Crear una ventana nueva con el HTML y usar window.print() para generar PDF
       const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        
-        // Esperar a que se cargue el contenido y luego imprimir
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 250);
-        };
+      if (!printWindow) {
+        alert('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes.');
+        return;
       }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      // Esperar a que se cargue completamente el contenido antes de imprimir
+      printWindow.onload = () => {
+        // Esperar un poco más para asegurar que todas las imágenes y estilos se carguen
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+        }, 1000);
+      };
+
+      // Fallback: si onload no se dispara, intentar después de un tiempo
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          printWindow.focus();
+          printWindow.print();
+        }
+      }, 2000);
+      
     } catch (error: any) {
       console.error('Error al descargar PDF del quiz:', error);
       alert('Error al generar el PDF: ' + (error.message || 'Error desconocido'));
