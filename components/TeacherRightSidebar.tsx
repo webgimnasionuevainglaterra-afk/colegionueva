@@ -199,7 +199,6 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
       const response = await fetch(`/api/evaluaciones/download-pdf?evaluacion_id=${evaluacionId}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'text/html',
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
@@ -209,22 +208,74 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
         throw new Error(errorText || 'Error al generar el PDF');
       }
 
-      // Obtener el HTML directamente
+      // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
       const htmlContent = await response.text();
 
-      // Crear una ventana nueva con el HTML y usar window.print() para generar PDF
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        
-        // Esperar a que se cargue el contenido y luego imprimir
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 250);
-        };
+      // Crear un iframe oculto para evitar problemas con bloqueadores de ventanas emergentes
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      // Escribir el HTML en el iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        alert('No se pudo acceder al documento del iframe');
+        return;
       }
+
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+
+      // Esperar a que se cargue completamente el contenido antes de imprimir
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+            // Limpiar el iframe después de un tiempo
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          } catch (printError) {
+            console.warn('Error al imprimir:', printError);
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }
+        }, 1000);
+      };
+
+      // Fallback: si onload no se dispara, intentar después de un tiempo
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow && iframe.parentNode) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        } catch (printError) {
+          console.warn('Error al imprimir en fallback:', printError);
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }
+      }, 2000);
+      
     } catch (error: any) {
       console.error('Error al descargar PDF:', error);
       alert('Error al generar el PDF: ' + (error.message || 'Error desconocido'));
@@ -394,30 +445,68 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
       // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
       const htmlContent = await response.text();
 
-      // Crear una ventana nueva con el HTML y usar window.print() para generar PDF
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        alert('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes.');
+      // Crear un iframe oculto para evitar problemas con bloqueadores de ventanas emergentes
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      // Escribir el HTML en el iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        alert('No se pudo acceder al documento del iframe');
         return;
       }
 
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
 
       // Esperar a que se cargue completamente el contenido antes de imprimir
-      printWindow.onload = () => {
-        // Esperar un poco más para asegurar que todas las imágenes y estilos se carguen
+      iframe.onload = () => {
         setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
+          try {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+            // Limpiar el iframe después de un tiempo
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          } catch (printError) {
+            console.warn('Error al imprimir:', printError);
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }
         }, 1000);
       };
 
       // Fallback: si onload no se dispara, intentar después de un tiempo
       setTimeout(() => {
-        if (printWindow && !printWindow.closed) {
-          printWindow.focus();
-          printWindow.print();
+        try {
+          if (iframe.contentWindow && iframe.parentNode) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        } catch (printError) {
+          console.warn('Error al imprimir en fallback:', printError);
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
         }
       }, 2000);
       

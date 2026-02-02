@@ -172,29 +172,67 @@ export default function TeacherDetailView({ teacherId, onClose }: TeacherDetailV
       // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
       const htmlContent = await response.text();
 
-      // Crear una ventana nueva con el HTML y usar window.print() para generar PDF
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes.');
+      // Crear un iframe oculto para evitar problemas con bloqueadores de ventanas emergentes
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      // Escribir el HTML en el iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        throw new Error('No se pudo acceder al documento del iframe');
       }
 
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
 
       // Esperar a que se cargue completamente el contenido antes de imprimir
-      printWindow.onload = () => {
-        // Esperar un poco más para asegurar que todas las imágenes y estilos se carguen
+      iframe.onload = () => {
         setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
+          try {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+            // Limpiar el iframe después de un tiempo
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          } catch (printError) {
+            console.warn('Error al imprimir:', printError);
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }
         }, 1000);
       };
 
       // Fallback: si onload no se dispara, intentar después de un tiempo
       setTimeout(() => {
-        if (printWindow && !printWindow.closed) {
-          printWindow.focus();
-          printWindow.print();
+        try {
+          if (iframe.contentWindow && iframe.parentNode) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        } catch (printError) {
+          console.warn('Error al imprimir en fallback:', printError);
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
         }
       }, 2000);
     } catch (err: any) {
@@ -221,15 +259,72 @@ export default function TeacherDetailView({ teacherId, onClose }: TeacherDetailV
         throw new Error('Error al descargar la evaluación');
       }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `evaluacion-${evaluacionId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Obtener el HTML directamente (el API retorna HTML, no PDF binario)
+      const htmlContent = await response.text();
+
+      // Crear un iframe oculto para evitar problemas con bloqueadores de ventanas emergentes
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      // Escribir el HTML en el iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        throw new Error('No se pudo acceder al documento del iframe');
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+
+      // Esperar a que se cargue completamente el contenido antes de imprimir
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+            // Limpiar el iframe después de un tiempo
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          } catch (printError) {
+            console.warn('Error al imprimir:', printError);
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }
+        }, 1000);
+      };
+
+      // Fallback: si onload no se dispara, intentar después de un tiempo
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow && iframe.parentNode) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        } catch (printError) {
+          console.warn('Error al imprimir en fallback:', printError);
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }
+      }, 2000);
     } catch (err: any) {
       console.error('Error al descargar evaluación:', err);
       alert('Error al descargar la evaluación: ' + err.message);
