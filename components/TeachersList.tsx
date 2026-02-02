@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import '../app/css/administrators-list.css';
 import EditTeacherForm from './EditTeacherForm';
@@ -32,18 +32,58 @@ export default function TeachersList() {
   const [error, setError] = useState<string | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
+  // Función para actualizar solo el estado online sin recargar toda la lista
+  const updateOnlineStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/teachers/get-teachers');
+      const contentType = response.headers.get('content-type');
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        return;
+      }
+
+      const result = await response.json();
+
+      if (!response.ok || !result.data) {
+        return;
+      }
+
+      // Solo actualizar el estado online si la estructura de la lista no ha cambiado
+      setTeachers(prev => {
+        const newTeachers = result.data || [];
+        // Si el número de profesores cambió, actualizar toda la lista
+        if (prev.length !== newTeachers.length) {
+          return newTeachers;
+        }
+        
+        // Si la estructura es la misma, solo actualizar el estado online
+        return prev.map(prevTeacher => {
+          const newTeacher = newTeachers.find((t: Teacher) => t.id === prevTeacher.id);
+          if (newTeacher && prevTeacher.is_online !== newTeacher.is_online) {
+            return { ...prevTeacher, is_online: newTeacher.is_online };
+          }
+          return prevTeacher;
+        });
+      });
+    } catch (err) {
+      console.error('Error al actualizar estado online:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTeachers();
-    
-    // Actualizar el estado online periódicamente (cada 10 segundos)
+  }, []);
+
+  // Actualizar el estado online periódicamente (cada 30 segundos)
+  useEffect(() => {
     const refreshInterval = setInterval(() => {
-      fetchTeachers();
-    }, 10000); // 10 segundos
+      updateOnlineStatus();
+    }, 30000); // 30 segundos (aumentado de 10 a 30)
 
     return () => {
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [updateOnlineStatus]);
 
   const fetchTeachers = async () => {
     try {

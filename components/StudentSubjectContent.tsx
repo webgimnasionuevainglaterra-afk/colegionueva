@@ -1412,8 +1412,8 @@ export default function StudentSubjectContent({
                             return null;
                           })()}
 
-                          {/* Archivos */}
-                          {contenido.tipo === 'archivo' && contenido.archivo_url && (() => {
+                          {/* Archivos - Mostrar si hay archivo_url, independientemente del tipo */}
+                          {contenido.archivo_url && (() => {
                             let files: string[] = [];
                             try {
                               const parsed = JSON.parse(contenido.archivo_url);
@@ -1423,7 +1423,7 @@ export default function StudentSubjectContent({
                             }
 
                             return (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: contenido.tipo === 'video' ? '0.75rem' : '0' }}>
                                 {files.map((fileUrl, idx) => (
                                   <a
                                     key={idx}
@@ -1991,28 +1991,55 @@ export default function StudentSubjectContent({
               );
             })()}
 
-            {selectedContent.tipo === 'archivo' && selectedContent.archivo_url && (
-              <div style={{ marginTop: '0.75rem' }}>
-                <a
-                  href={Array.isArray(selectedContent.archivo_url) ? selectedContent.archivo_url[0] : selectedContent.archivo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.5rem 0.9rem',
-                    borderRadius: '6px',
-                    background: '#2563eb',
-                    color: 'white',
-                    fontSize: '0.85rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Ver archivo
-                </a>
-              </div>
-            )}
+            {/* Archivos - Mostrar si hay archivo_url, independientemente del tipo */}
+            {selectedContent.archivo_url && (() => {
+              let files: string[] = [];
+              try {
+                if (typeof selectedContent.archivo_url === 'string') {
+                  const parsed = JSON.parse(selectedContent.archivo_url);
+                  files = Array.isArray(parsed) ? parsed : [selectedContent.archivo_url];
+                } else if (Array.isArray(selectedContent.archivo_url)) {
+                  files = selectedContent.archivo_url;
+                } else {
+                  files = [selectedContent.archivo_url];
+                }
+              } catch {
+                files = typeof selectedContent.archivo_url === 'string' 
+                  ? [selectedContent.archivo_url] 
+                  : Array.isArray(selectedContent.archivo_url) 
+                    ? selectedContent.archivo_url 
+                    : [];
+              }
+
+              return (
+                <div style={{ marginTop: selectedContent.tipo === 'video' ? '0.75rem' : '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {files.map((fileUrl, idx) => (
+                      <a
+                        key={idx}
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.5rem 0.9rem',
+                          borderRadius: '6px',
+                          background: '#2563eb',
+                          color: 'white',
+                          fontSize: '0.85rem',
+                          textDecoration: 'none',
+                          width: 'fit-content',
+                        }}
+                      >
+                        📄 Ver archivo {files.length > 1 ? `${idx + 1}` : ''}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Preguntas y Respuestas */}
       <div style={{ 
@@ -2266,8 +2293,8 @@ export default function StudentSubjectContent({
                                 return null;
                               })()}
 
-                              {/* Archivos */}
-                              {contenido.tipo === 'archivo' && contenido.archivo_url && (() => {
+                              {/* Archivos - Mostrar si hay archivo_url, independientemente del tipo */}
+                              {contenido.archivo_url && (() => {
                                 let files: string[] = [];
                                 try {
                                   const parsed = JSON.parse(contenido.archivo_url);
@@ -2277,7 +2304,7 @@ export default function StudentSubjectContent({
                                 }
 
                                 return (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: contenido.tipo === 'video' ? '0.5rem' : '0' }}>
                                     {files.map((fileUrl, idx) => (
                                       <a
                                         key={idx}
