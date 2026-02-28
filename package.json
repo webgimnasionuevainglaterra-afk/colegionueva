@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "HOSTNAME=localhost next dev -p 3003",
+    "dev": "HOSTNAME=localhost next dev -p 3003 --webpack",
     "dev:3000": "HOSTNAME=localhost next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3003",
