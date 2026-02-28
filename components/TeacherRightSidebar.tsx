@@ -232,10 +232,10 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
       iframeDoc.open();
       iframeDoc.write(htmlContent);
       iframeDoc.close();
-
+        
       // Esperar a que se cargue completamente el contenido antes de imprimir
       iframe.onload = () => {
-        setTimeout(() => {
+          setTimeout(() => {
           try {
             if (iframe.contentWindow) {
               iframe.contentWindow.focus();
@@ -272,7 +272,7 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
           console.warn('Error al imprimir en fallback:', printError);
           if (iframe.parentNode) {
             document.body.removeChild(iframe);
-          }
+      }
         }
       }, 2000);
       
@@ -466,10 +466,10 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
       iframeDoc.open();
       iframeDoc.write(htmlContent);
       iframeDoc.close();
-
+        
       // Esperar a que se cargue completamente el contenido antes de imprimir
       iframe.onload = () => {
-        setTimeout(() => {
+          setTimeout(() => {
           try {
             if (iframe.contentWindow) {
               iframe.contentWindow.focus();
@@ -506,7 +506,7 @@ export default function TeacherRightSidebar({ isOpen = true, onClose }: TeacherR
           console.warn('Error al imprimir en fallback:', printError);
           if (iframe.parentNode) {
             document.body.removeChild(iframe);
-          }
+      }
         }
       }, 2000);
       

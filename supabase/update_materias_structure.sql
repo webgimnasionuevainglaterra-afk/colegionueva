@@ -20,3 +20,8 @@ ALTER TABLE materias ADD CONSTRAINT materias_curso_id_nombre_key UNIQUE(curso_id
 
 
 
+
+
+
+
+

@@ -283,3 +283,7 @@ Aunque el sistema funciona correctamente para los estudiantes, se recomienda **a
 
 **Única observación:** Se recomienda agregar validación de permisos cuando los profesores crean contenido para mantener la consistencia con otras funcionalidades (quizzes, evaluaciones).
 
+
+
+
+

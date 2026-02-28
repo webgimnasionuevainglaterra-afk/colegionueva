@@ -28,11 +28,26 @@ interface CalificacionesMateria {
   promedio: number; // Nota final ponderada (70% quices, 30% evaluaciones)
 }
 
+interface RespuestaDetalle {
+  pregunta: string;
+  orden: number;
+  es_correcta: boolean;
+  opcionSeleccionada: string | null;
+  opciones: Array<{ id: string; texto: string; es_correcta: boolean }>;
+}
+
 export default function StudentGradesView() {
   const { user } = useAuth();
   const [calificaciones, setCalificaciones] = useState<CalificacionesMateria[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalRespuestas, setModalRespuestas] = useState<{
+    estudiante: string;
+    quizEval: string;
+    tipo: 'quiz' | 'evaluacion';
+    respuestas: RespuestaDetalle[];
+    loading: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const fetchCalificaciones = async () => {
@@ -96,6 +111,38 @@ export default function StudentGradesView() {
     if (calificacion >= 3.7) return '#10b981'; // Verde (aprueba)
     if (calificacion >= 3.0) return '#f59e0b'; // Amarillo (en riesgo)
     return '#ef4444'; // Rojo (reprueba)
+  };
+
+  const verRespuestas = async (intentoId: string, nombre: string, tipo: 'quiz' | 'evaluacion') => {
+    setModalRespuestas({
+      estudiante: user?.user_metadata?.full_name || user?.email || 'Tus respuestas',
+      quizEval: nombre,
+      tipo,
+      respuestas: [],
+      loading: true,
+    });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setModalRespuestas((m) => m ? { ...m, loading: false, respuestas: [] } : null);
+        return;
+      }
+      const res = await fetch(
+        `/api/estudiantes/get-intento-respuestas?intento_id=${intentoId}&tipo=${tipo}`,
+        {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error al cargar');
+      setModalRespuestas((m) =>
+        m ? { ...m, respuestas: json.data || [], loading: false } : null
+      );
+    } catch (err: any) {
+      setModalRespuestas((m) =>
+        m ? { ...m, respuestas: [], loading: false } : null
+      );
+    }
   };
 
   const calcularPromedioQuizzes = (materia: CalificacionesMateria) => {
@@ -251,6 +298,7 @@ export default function StudentGradesView() {
                         background: '#f9fafb',
                         borderRadius: '6px',
                         border: '1px solid #e5e7eb',
+                        gap: '0.75rem',
                       }}
                     >
                       <div style={{ flex: 1 }}>
@@ -280,12 +328,29 @@ export default function StudentGradesView() {
                           fontSize: '1rem',
                           fontWeight: 600,
                           color: getColorByCalificacion(quiz.calificacion),
-                          minWidth: '60px',
+                          minWidth: '50px',
                           textAlign: 'right',
                         }}
                       >
                         {quiz.calificacion.toFixed(2)}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => verRespuestas(quiz.id, quiz.nombre, 'quiz')}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          fontSize: '0.8125rem',
+                          fontWeight: 500,
+                          background: '#dbeafe',
+                          color: '#1d4ed8',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Ver respuestas
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -317,6 +382,7 @@ export default function StudentGradesView() {
                         background: '#f9fafb',
                         borderRadius: '6px',
                         border: '1px solid #e5e7eb',
+                        gap: '0.75rem',
                       }}
                     >
                       <div style={{ flex: 1 }}>
@@ -346,12 +412,29 @@ export default function StudentGradesView() {
                           fontSize: '1rem',
                           fontWeight: 600,
                           color: getColorByCalificacion(evaluacion.calificacion),
-                          minWidth: '60px',
+                          minWidth: '50px',
                           textAlign: 'right',
                         }}
                       >
                         {evaluacion.calificacion.toFixed(2)}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => verRespuestas(evaluacion.id, evaluacion.nombre, 'evaluacion')}
+                        style={{
+                          padding: '0.375rem 0.75rem',
+                          fontSize: '0.8125rem',
+                          fontWeight: 500,
+                          background: '#dbeafe',
+                          color: '#1d4ed8',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Ver respuestas
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -375,6 +458,106 @@ export default function StudentGradesView() {
           </div>
         );})}
       </div>
+
+      {/* Modal de respuestas (bien/mal) */}
+      {modalRespuestas && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setModalRespuestas(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              color: '#1f2937',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: '560px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937' }}>
+                  Respuestas: {modalRespuestas.quizEval}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalRespuestas(null)}
+                style={{
+                  background: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            {modalRespuestas.loading ? (
+              <p style={{ color: '#1f2937' }}>Cargando respuestas...</p>
+            ) : modalRespuestas.respuestas.length === 0 ? (
+              <p style={{ color: '#374151' }}>No hay respuestas registradas.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {modalRespuestas.respuestas
+                  .sort((a, b) => a.orden - b.orden)
+                  .map((r, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        background: r.es_correcta ? '#d1fae5' : '#fee2e2',
+                        border: `1px solid ${r.es_correcta ? '#10b981' : '#ef4444'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>{r.es_correcta ? '✓' : '✗'}</span>
+                        <span style={{ fontWeight: 600, color: r.es_correcta ? '#065f46' : '#991b1b' }}>
+                          {r.es_correcta ? 'Correcta' : 'Incorrecta'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#1f2937' }}>{r.pregunta}</p>
+                      {r.opciones?.length > 0 && (
+                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>
+                          {r.opciones.map((o: any) => (
+                            <div
+                              key={o.id}
+                              style={{
+                                marginLeft: '0.5rem',
+                                color: o.id === r.opcionSeleccionada ? '#1f2937' : '#374151',
+                                fontWeight: o.id === r.opcionSeleccionada ? 600 : 400,
+                              }}
+                            >
+                              {o.es_correcta ? '✓ ' : ''}{o.texto}
+                              {o.id === r.opcionSeleccionada && ' (seleccionada)'}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

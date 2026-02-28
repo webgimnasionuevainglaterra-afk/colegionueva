@@ -126,10 +126,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Obtener información del estudiante
+    // Obtener información del estudiante (incluye acudiente)
     const { data: estudiante, error: estudianteError } = await supabaseAdmin
       .from('estudiantes')
-      .select('*')
+      .select(`
+        *,
+        acudiente:acudientes (
+          id,
+          nombre,
+          apellido,
+          correo_electronico,
+          numero_telefono,
+          numero_cedula
+        )
+      `)
       .eq('id', studentId)
       .single();
 
@@ -140,23 +150,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // IMPORTANTE: intentos_quiz e intentos_evaluacion usan auth.users.id (estudiante.user_id),
+    // NO estudiantes.id. get-my-students pasa estudiantes.id, por eso debemos usar user_id.
+    const estudianteUserId = (estudiante as any).user_id;
+    const idParaIntentos = estudianteUserId || studentId; // Fallback si no tiene user_id
+
     // Obtener todos los intentos de quizes del estudiante
-    const { data: intentosQuiz, error: intentosError } = await supabaseAdmin
+    const { data: intentosQuizRaw, error: intentosError } = await supabaseAdmin
       .from('intentos_quiz')
       .select(`
         *,
         quizzes (
           id,
-          titulo,
+          nombre,
           descripcion,
           subtema_id,
           subtemas (
             id,
-            titulo,
+            nombre,
             tema_id,
             temas (
               id,
-              titulo,
+              nombre,
               periodo_id,
               periodos (
                 id,
@@ -177,48 +192,61 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('estudiante_id', studentId)
+      .eq('estudiante_id', idParaIntentos)
       .order('fecha_inicio', { ascending: false });
 
-    // Obtener todas las respuestas del estudiante
-    const { data: respuestas, error: respuestasError } = await supabaseAdmin
-      .from('respuestas_estudiante')
-      .select(`
-        *,
-        preguntas (
-          id,
-          texto,
-          tiempo_segundos,
-          opciones_respuesta (
+    // Agregar estado derivado de completado (la tabla no tiene columna estado)
+    const intentosQuiz = (intentosQuizRaw || []).map((iq: any) => ({
+      ...iq,
+      estado: iq.completado ? 'completado' : 'en_progreso',
+    }));
+
+    // Obtener todas las respuestas del estudiante (respuestas_estudiante no tiene estudiante_id,
+    // se filtra por intento_id de los intentos del estudiante)
+    const intentoIds = intentosQuiz.map((iq: any) => iq.id);
+    let respuestas: any[] = [];
+    if (intentoIds.length > 0) {
+      const { data: respuestasData, error: respuestasError } = await supabaseAdmin
+        .from('respuestas_estudiante')
+        .select(`
+          *,
+          preguntas (
             id,
-            texto,
-            es_correcta,
-            explicacion
-          )
-        ),
-        intentos_quiz (
-          id,
-          quiz_id,
-          quizzes (
+            pregunta_texto,
+            tiempo_segundos,
+            opciones_respuesta (
+              id,
+              texto,
+              es_correcta,
+              explicacion
+            )
+          ),
+          intentos_quiz (
             id,
-            titulo,
-            subtema_id
+            quiz_id,
+            quizzes (
+              id,
+              nombre,
+              subtema_id
+            )
           )
-        )
-      `)
-      .eq('estudiante_id', studentId)
-      .order('fecha_respuesta', { ascending: false });
+        `)
+        .in('intento_id', intentoIds)
+        .order('fecha_respuesta', { ascending: false });
+      respuestas = respuestasData || [];
+    }
 
     // Obtener intentos de evaluaciones de periodo
-    const { data: intentosEvaluacion, error: intentosEvalError } = await supabaseAdmin
+    const { data: intentosEvaluacionRaw, error: intentosEvalError } = await supabaseAdmin
       .from('intentos_evaluacion')
       .select(`
         *,
         evaluaciones_periodo (
           id,
-          titulo,
+          nombre,
           descripcion,
           periodo_id,
+          materia_id,
           periodos (
             id,
             nombre,
@@ -233,23 +261,35 @@ export async function GET(request: NextRequest) {
                 nivel
               )
             )
+          ),
+          materias (
+            id,
+            nombre
           )
         )
       `)
-      .eq('estudiante_id', studentId)
+      .eq('estudiante_id', idParaIntentos)
       .order('fecha_inicio', { ascending: false });
 
-    // Calcular estadísticas generales
+    // Agregar estado derivado de completado (la tabla no tiene columna estado)
+    const intentosEvaluacion = (intentosEvaluacionRaw || []).map((ie: any) => ({
+      ...ie,
+      estado: ie.completado ? 'completado' : 'en_progreso',
+    }));
+
+    // Calcular estadísticas generales (solo completados para promedios)
     const totalQuizes = intentosQuiz?.length || 0;
-    const quizesCompletados = intentosQuiz?.filter((iq: any) => iq.estado === 'completado').length || 0;
-    const promedioQuizes = intentosQuiz && intentosQuiz.length > 0
-      ? intentosQuiz.reduce((sum: number, iq: any) => sum + (iq.calificacion || 0), 0) / intentosQuiz.length
+    const quizesCompletados = intentosQuiz?.filter((iq: any) => iq.completado && iq.calificacion != null).length || 0;
+    const quizesConNota = intentosQuiz?.filter((iq: any) => iq.completado && iq.calificacion != null) || [];
+    const promedioQuizes = quizesConNota.length > 0
+      ? quizesConNota.reduce((sum: number, iq: any) => sum + Number(iq.calificacion), 0) / quizesConNota.length
       : 0;
 
     const totalEvaluaciones = intentosEvaluacion?.length || 0;
-    const evaluacionesCompletadas = intentosEvaluacion?.filter((ie: any) => ie.estado === 'completado').length || 0;
-    const promedioEvaluaciones = intentosEvaluacion && intentosEvaluacion.length > 0
-      ? intentosEvaluacion.reduce((sum: number, ie: any) => sum + (ie.calificacion || 0), 0) / intentosEvaluacion.length
+    const evaluacionesCompletadas = intentosEvaluacion?.filter((ie: any) => ie.completado && ie.calificacion != null).length || 0;
+    const evaluacionesConNota = intentosEvaluacion?.filter((ie: any) => ie.completado && ie.calificacion != null) || [];
+    const promedioEvaluaciones = evaluacionesConNota.length > 0
+      ? evaluacionesConNota.reduce((sum: number, ie: any) => sum + Number(ie.calificacion), 0) / evaluacionesConNota.length
       : 0;
 
     const totalRespuestas = respuestas?.length || 0;
@@ -271,49 +311,85 @@ export async function GET(request: NextRequest) {
       sumaQuizzes: number;
       countQuizzes: number;
       notaEvaluacion: number | null;
+      materiaNombre: string;
+      periodoNombre: string;
     };
 
     const notasPorMateriaPeriodo: Record<string, AcumuladorNotas> = {};
 
-    // Agrupar quizzes por materia/periodo
+    const extraerMateriaPeriodoQuiz = (iq: any) => {
+      const quiz = iq.quizzes;
+      if (!quiz?.subtemas) return null;
+      const subtema = Array.isArray(quiz.subtemas) ? quiz.subtemas[0] : quiz.subtemas;
+      if (!subtema?.temas) return null;
+      const tema = Array.isArray(subtema.temas) ? subtema.temas[0] : subtema.temas;
+      if (!tema?.periodos) return null;
+      const periodo = Array.isArray(tema.periodos) ? tema.periodos[0] : tema.periodos;
+      if (!periodo?.materias) return null;
+      const materia = Array.isArray(periodo.materias) ? periodo.materias[0] : periodo.materias;
+      if (!materia?.id || !periodo?.id) return null;
+      return {
+        materiaId: materia.id,
+        periodoId: periodo.id,
+        materiaNombre: materia.nombre || 'Sin nombre',
+        periodoNombre: periodo.nombre || 'Sin nombre',
+      };
+    };
+
+    const extraerMateriaPeriodoEval = (ie: any) => {
+      const ep = ie.evaluaciones_periodo;
+      if (!ep) return null;
+      const periodo = Array.isArray(ep.periodos) ? ep.periodos[0] : ep.periodos;
+      const materia = ep.materias || periodo?.materias;
+      const mat = Array.isArray(materia) ? materia[0] : materia;
+      if (!mat?.id || !periodo?.id) return null;
+      return {
+        materiaId: mat.id,
+        periodoId: periodo.id,
+        materiaNombre: mat.nombre || 'Sin nombre',
+        periodoNombre: periodo.nombre || 'Sin nombre',
+      };
+    };
+
+    // Agrupar quizzes por materia/periodo (solo completados con calificación)
     (intentosQuiz || []).forEach((iq: any) => {
-      const materiaId = iq.quizzes?.subtemas?.temas?.periodos?.materias?.id;
-      const periodoId = iq.quizzes?.subtemas?.temas?.periodos?.id;
+      if (!iq.completado || iq.calificacion == null) return;
+      const info = extraerMateriaPeriodoQuiz(iq);
+      if (!info) return;
 
-      if (!materiaId || !periodoId) return;
-
-      const k = key(materiaId, periodoId);
+      const k = key(info.materiaId, info.periodoId);
       if (!notasPorMateriaPeriodo[k]) {
         notasPorMateriaPeriodo[k] = {
           sumaQuizzes: 0,
           countQuizzes: 0,
           notaEvaluacion: null,
+          materiaNombre: info.materiaNombre,
+          periodoNombre: info.periodoNombre,
         };
       }
-
-      const cal = typeof iq.calificacion === 'number' ? iq.calificacion : 0;
-      notasPorMateriaPeriodo[k].sumaQuizzes += cal;
+      notasPorMateriaPeriodo[k].sumaQuizzes += Number(iq.calificacion);
       notasPorMateriaPeriodo[k].countQuizzes += 1;
     });
 
     // Agrupar evaluaciones por materia/periodo (una por materia/periodo)
     (intentosEvaluacion || []).forEach((ie: any) => {
-      const materiaId = ie.evaluaciones_periodo?.periodos?.materias?.id;
-      const periodoId = ie.evaluaciones_periodo?.periodos?.id;
+      if (!ie.completado || ie.calificacion == null) return;
+      const info = extraerMateriaPeriodoEval(ie);
+      if (!info) return;
 
-      if (!materiaId || !periodoId) return;
-
-      const k = key(materiaId, periodoId);
+      const k = key(info.materiaId, info.periodoId);
       if (!notasPorMateriaPeriodo[k]) {
         notasPorMateriaPeriodo[k] = {
           sumaQuizzes: 0,
           countQuizzes: 0,
           notaEvaluacion: null,
+          materiaNombre: info.materiaNombre,
+          periodoNombre: info.periodoNombre,
         };
       }
-
-      const cal = typeof ie.calificacion === 'number' ? ie.calificacion : 0;
-      notasPorMateriaPeriodo[k].notaEvaluacion = cal;
+      notasPorMateriaPeriodo[k].notaEvaluacion = Number(ie.calificacion);
+      notasPorMateriaPeriodo[k].materiaNombre = info.materiaNombre;
+      notasPorMateriaPeriodo[k].periodoNombre = info.periodoNombre;
     });
 
     // Transformar en arreglo con nota final y estado
@@ -330,6 +406,8 @@ export async function GET(request: NextRequest) {
       return {
         materiaId,
         periodoId,
+        materiaNombre: v.materiaNombre,
+        periodoNombre: v.periodoNombre,
         promedioQuizzes: Math.round(promedioQuizzes * 100) / 100,
         notaEvaluacion: Math.round(notaEvaluacion * 100) / 100,
         notaFinal: notaFinalRedondeada,

@@ -105,7 +105,7 @@ export default function EditableImage({
             content: data.url,
           }),
         });
-
+        
         const saveData = await saveResponse.json();
         
         if (saveResponse.ok) {

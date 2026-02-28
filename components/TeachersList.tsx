@@ -73,7 +73,7 @@ export default function TeachersList() {
   useEffect(() => {
     fetchTeachers();
   }, []);
-
+    
   // Actualizar el estado online periódicamente (cada 30 segundos)
   useEffect(() => {
     const refreshInterval = setInterval(() => {

@@ -2063,6 +2063,17 @@ function CreateContenidoModal({ onClose, onCreate, subtemaNombre, subtemaDescrip
           if (uploadData.files && Array.isArray(uploadData.files)) {
             archivosUrls = uploadData.files.map((file: any) => file.url);
             console.log('✅ Archivos subidos exitosamente. URLs extraídas:', archivosUrls);
+            
+            // Si hay advertencias sobre archivos inválidos, informar al usuario
+            if (uploadData.warnings) {
+              console.warn('⚠️ Advertencia:', uploadData.warnings);
+              if (uploadData.invalidFiles && uploadData.invalidFiles.length > 0) {
+                const invalidList = uploadData.invalidFiles
+                  .map((f: any) => `• ${f.name}: ${f.reason}`)
+                  .join('\n');
+                alert(`Se subieron ${archivosUrls.length} archivo(s) exitosamente, pero algunos fueron rechazados:\n\n${invalidList}`);
+              }
+            }
           } else if (uploadData.urls && Array.isArray(uploadData.urls)) {
             // Fallback por si acaso la API devuelve urls directamente
             archivosUrls = uploadData.urls;
@@ -2091,8 +2102,14 @@ function CreateContenidoModal({ onClose, onCreate, subtemaNombre, subtemaDescrip
               try {
                 const errorData = JSON.parse(responseText);
                 console.error('❌ Error al subir archivos (JSON):', errorData);
-                // Solo usar errorData si tiene propiedades útiles
-                if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
+                
+                // Si hay archivos inválidos, mostrar detalles específicos
+                if (errorData.invalidFiles && Array.isArray(errorData.invalidFiles) && errorData.invalidFiles.length > 0) {
+                  const invalidList = errorData.invalidFiles
+                    .map((f: any) => `• ${f.name}: ${f.reason}`)
+                    .join('\n');
+                  errorMessage = `No se pudieron subir ${errorData.invalidFiles.length} archivo(s):\n\n${invalidList}`;
+                } else if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
                   errorMessage = errorData.error || errorData.message || errorMessage;
                 } else if (typeof errorData === 'string') {
                   errorMessage = errorData;

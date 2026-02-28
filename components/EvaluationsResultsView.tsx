@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import '../app/css/evaluations-results.css';
 
+interface RespuestaItem {
+  pregunta: string;
+  orden: number;
+  es_correcta: boolean;
+  opcionSeleccionada: string | null;
+  opciones: Array<{ id: string; texto: string; es_correcta: boolean }>;
+}
+
 interface EstudianteResultado {
   estudiante: {
     id: string;
@@ -57,46 +65,72 @@ interface ResultadoEvaluacion {
   estadisticas: Estadisticas;
 }
 
+interface CursoConMaterias {
+  id: string;
+  nombre: string;
+  nivel: string;
+  materias: Array<{ id: string; nombre: string; periodos?: Array<{ id: string; nombre: string }> }>;
+}
+
 export default function EvaluationsResultsView() {
   const [resultados, setResultados] = useState<ResultadoEvaluacion[]>([]);
+  const [cursosAsignados, setCursosAsignados] = useState<CursoConMaterias[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [modalRespuestas, setModalRespuestas] = useState<{
+    estudiante: string;
+    respuestas: RespuestaItem[];
+    loading: boolean;
+  } | null>(null);
   const [filtros, setFiltros] = useState({
     curso: '',
     materia: '',
     periodo: '',
     tipo: 'all' as 'all' | 'quiz' | 'evaluacion',
+    busquedaEstudiante: '',
   });
 
   useEffect(() => {
-    fetchResults();
+    fetchCursosYResultados();
   }, []);
+
+  const fetchCursosYResultados = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setError('No hay sesión activa');
+      setLoading(false);
+      return;
+    }
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` };
+    // Cargar cursos y resultados en paralelo (cursos es rápido, da opciones al select de inmediato)
+    const [cursosRes, resultadosRes] = await Promise.all([
+      fetch('/api/teachers/get-my-courses', { method: 'GET', headers }),
+      fetch('/api/teachers/get-evaluations-results', { method: 'GET', headers }),
+    ]);
+    const cursosJson = await cursosRes.json();
+    const resultadosJson = await resultadosRes.json();
+    if (cursosRes.ok && cursosJson.data) setCursosAsignados(cursosJson.data);
+    if (!resultadosRes.ok) {
+      setError(resultadosJson.error || 'Error al cargar los resultados');
+    } else {
+      setResultados(resultadosJson.data || []);
+    }
+    setLoading(false);
+  };
 
   const fetchResults = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No hay sesión activa');
-      }
-
+      if (!session) throw new Error('No hay sesión activa');
       const response = await fetch('/api/teachers/get-evaluations-results', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       });
-
       const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al cargar los resultados');
-      }
-
+      if (!response.ok) throw new Error(result.error || 'Error al cargar los resultados');
       setResultados(result.data || []);
     } catch (err: any) {
       console.error('Error al obtener resultados:', err);
@@ -116,39 +150,86 @@ export default function EvaluationsResultsView() {
     setExpandedItems(newExpanded);
   };
 
-  // Obtener opciones únicas para los filtros
-  const cursosUnicos = Array.from(new Set(resultados.map(r => r.curso.id)))
-    .map(id => resultados.find(r => r.curso.id === id)?.curso)
-    .filter(Boolean) as Array<{ id: string; nombre: string; nivel: string }>;
+  const verRespuestas = async (
+    intentoId: string,
+    tipo: 'quiz' | 'evaluacion',
+    estudianteNombre: string
+  ) => {
+    setModalRespuestas({ estudiante: estudianteNombre, respuestas: [], loading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No hay sesión');
+      const res = await fetch(
+        `/api/teachers/get-intento-respuestas?intento_id=${intentoId}&tipo=${tipo}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error al cargar');
+      setModalRespuestas({
+        estudiante: estudianteNombre,
+        respuestas: json.data || [],
+        loading: false,
+      });
+    } catch (err: any) {
+      setModalRespuestas({
+        estudiante: estudianteNombre,
+        respuestas: [],
+        loading: false,
+      });
+      alert(err.message || 'Error al cargar respuestas');
+    }
+  };
 
-  const materiasUnicas = Array.from(new Set(
-    resultados
-      .filter(r => !filtros.curso || r.curso.id === filtros.curso)
-      .map(r => r.materia.id)
-    ))
-    .map(id => resultados.find(r => r.materia.id === id)?.materia)
-    .filter(Boolean) as Array<{ id: string; nombre: string }>;
+  // Filtros: usar cursos asignados (siempre visibles) + materias/periodos de cursos o resultados
+  const cursosUnicos = cursosAsignados.length > 0
+    ? cursosAsignados.map(c => ({ id: c.id, nombre: c.nombre, nivel: c.nivel }))
+    : Array.from(new Set(resultados.map(r => r.curso?.id).filter(Boolean)))
+        .map(id => resultados.find(r => r.curso?.id === id)?.curso)
+        .filter(Boolean) as Array<{ id: string; nombre: string; nivel: string }>;
 
-  const periodosUnicos = Array.from(new Set(
-    resultados
-      .filter(r => {
-        if (filtros.curso && r.curso.id !== filtros.curso) return false;
-        if (filtros.materia && r.materia.id !== filtros.materia) return false;
-        return true;
-      })
-      .map(r => r.periodo.id)
-    ))
-    .map(id => resultados.find(r => r.periodo.id === id)?.periodo)
-    .filter(Boolean) as Array<{ id: string; nombre: string }>;
+  const materiasParaFiltro = filtros.curso
+    ? (cursosAsignados.find(c => c.id === filtros.curso)?.materias || [])
+    : cursosAsignados.flatMap(c => c.materias || []);
+  const materiasUnicas = materiasParaFiltro.length > 0
+    ? Array.from(new Map(materiasParaFiltro.map(m => [m.id, { id: m.id, nombre: m.nombre }])).values())
+    : Array.from(new Set(
+        resultados
+          .filter(r => !filtros.curso || r.curso?.id === filtros.curso)
+          .map(r => r.materia?.id)
+          .filter(Boolean)
+      )).map(id => resultados.find(r => r.materia?.id === id)?.materia).filter(Boolean) as Array<{ id: string; nombre: string }>;
+
+  const periodosParaFiltro = materiasParaFiltro.flatMap((m: any) => m.periodos || []);
+  const periodosUnicos = periodosParaFiltro.length > 0
+    ? Array.from(new Map(periodosParaFiltro.map(p => [p.id, { id: p.id, nombre: p.nombre }])).values())
+    : Array.from(new Set(
+        resultados
+          .filter(r => {
+            if (filtros.curso && r.curso?.id !== filtros.curso) return false;
+            if (filtros.materia && r.materia?.id !== filtros.materia) return false;
+            return true;
+          })
+          .map(r => r.periodo?.id)
+          .filter(Boolean)
+      )).map(id => resultados.find(r => r.periodo?.id === id)?.periodo).filter(Boolean) as Array<{ id: string; nombre: string }>;
 
   // Filtrar resultados
   const resultadosFiltrados = resultados.filter(r => {
-    if (filtros.curso && r.curso.id !== filtros.curso) return false;
-    if (filtros.materia && r.materia.id !== filtros.materia) return false;
-    if (filtros.periodo && r.periodo.id !== filtros.periodo) return false;
+    if (filtros.curso && r.curso?.id !== filtros.curso) return false;
+    if (filtros.materia && r.materia?.id !== filtros.materia) return false;
+    if (filtros.periodo && r.periodo?.id !== filtros.periodo) return false;
     if (filtros.tipo !== 'all' && r.tipo !== filtros.tipo) return false;
     return true;
   });
+
+  // Filtrar estudiantes por búsqueda (dentro de cada resultado)
+  const filtrarEstudiantes = (estudiantes: EstudianteResultado[]) => {
+    if (!filtros.busquedaEstudiante.trim()) return estudiantes;
+    const term = filtros.busquedaEstudiante.toLowerCase().trim();
+    return estudiantes.filter(item =>
+      `${item.estudiante.nombre} ${item.estudiante.apellido}`.toLowerCase().includes(term)
+    );
+  };
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -289,8 +370,20 @@ export default function EvaluationsResultsView() {
           </select>
         </div>
 
+        <div className="filter-group" style={{ flex: '1 1 200px', minWidth: '200px' }}>
+          <label htmlFor="filtro-estudiante">Buscar por estudiante:</label>
+          <input
+            id="filtro-estudiante"
+            type="text"
+            placeholder="Nombre o apellido..."
+            value={filtros.busquedaEstudiante}
+            onChange={(e) => setFiltros(prev => ({ ...prev, busquedaEstudiante: e.target.value }))}
+            className="filter-select"
+            style={{ fontFamily: 'inherit' }}
+          />
+        </div>
         <button
-          onClick={() => setFiltros({ curso: '', materia: '', periodo: '', tipo: 'all' })}
+          onClick={() => setFiltros({ curso: '', materia: '', periodo: '', tipo: 'all', busquedaEstudiante: '' })}
           className="clear-filters-btn"
         >
           Limpiar Filtros
@@ -409,10 +502,20 @@ export default function EvaluationsResultsView() {
                             <th>Calificación</th>
                             <th>Fecha de Realización</th>
                             <th>Tiempo</th>
+                            <th style={{ minWidth: '140px', background: '#eff6ff' }}>Ver bien/mal</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {resultado.estudiantes.map((item) => (
+                          {filtrarEstudiantes(resultado.estudiantes).length === 0 ? (
+                            <tr>
+                              <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                                {filtros.busquedaEstudiante
+                                  ? 'No hay estudiantes que coincidan con la búsqueda.'
+                                  : 'No hay estudiantes.'}
+                              </td>
+                            </tr>
+                          ) : (
+                          filtrarEstudiantes(resultado.estudiantes).map((item) => (
                             <tr key={item.estudiante.id}>
                               <td>
                                 <div className="student-cell">
@@ -447,10 +550,10 @@ export default function EvaluationsResultsView() {
                                 {item.intento?.calificacion !== null && item.intento?.calificacion !== undefined ? (
                                   <span
                                     className={`calificacion ${
-                                      parseFloat(item.intento.calificacion) >= 3.7 ? 'aprobado' : 'reprobado'
+                                      Number(item.intento.calificacion) >= 3.7 ? 'aprobado' : 'reprobado'
                                     }`}
                                   >
-                                    {parseFloat(item.intento.calificacion).toFixed(2)}
+                                    {Number(item.intento.calificacion).toFixed(2)}
                                   </span>
                                 ) : (
                                   <span className="calificacion-sin-dato">-</span>
@@ -494,8 +597,40 @@ export default function EvaluationsResultsView() {
                                   <span className="tiempo-text">-</span>
                                 )}
                               </td>
+                              <td style={{ background: '#f8fafc' }}>
+                                {item.intento?.completado && item.intento?.id ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      verRespuestas(
+                                        item.intento!.id,
+                                        resultado.tipo,
+                                        `${item.estudiante.nombre} ${item.estudiante.apellido}`
+                                      );
+                                    }}
+                                    style={{
+                                      padding: '0.4rem 0.9rem',
+                                      fontSize: '0.8rem',
+                                      fontWeight: 600,
+                                      background: '#2563eb',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title="Ver qué preguntas respondió bien y cuáles mal"
+                                  >
+                                    Ver bien/mal
+                                  </button>
+                                ) : (
+                                  <span className="tiempo-text">—</span>
+                                )}
+                              </td>
                             </tr>
-                          ))}
+                          ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -504,6 +639,104 @@ export default function EvaluationsResultsView() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de respuestas (bien/mal) */}
+      {modalRespuestas && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setModalRespuestas(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              color: '#1f2937',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: '560px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937' }}>
+                Respuestas: {modalRespuestas.estudiante}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalRespuestas(null)}
+                style={{
+                  background: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            {modalRespuestas.loading ? (
+              <p style={{ color: '#1f2937' }}>Cargando respuestas...</p>
+            ) : modalRespuestas.respuestas.length === 0 ? (
+              <p style={{ color: '#374151' }}>No hay respuestas registradas.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {modalRespuestas.respuestas
+                  .sort((a, b) => a.orden - b.orden)
+                  .map((r, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        background: r.es_correcta ? '#d1fae5' : '#fee2e2',
+                        border: `1px solid ${r.es_correcta ? '#10b981' : '#ef4444'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>{r.es_correcta ? '✓' : '✗'}</span>
+                        <span style={{ fontWeight: 600, color: r.es_correcta ? '#065f46' : '#991b1b' }}>
+                          {r.es_correcta ? 'Correcta' : 'Incorrecta'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#1f2937' }}>{r.pregunta}</p>
+                      {r.opciones?.length > 0 && (
+                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>
+                          {r.opciones.map((o: any) => (
+                            <div
+                              key={o.id}
+                              style={{
+                                marginLeft: '0.5rem',
+                                color: o.id === r.opcionSeleccionada ? '#1f2937' : '#374151',
+                                fontWeight: o.id === r.opcionSeleccionada ? 600 : 400,
+                              }}
+                            >
+                              {o.es_correcta ? '✓ ' : ''}{o.texto}
+                              {o.id === r.opcionSeleccionada && ' (seleccionada)'}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

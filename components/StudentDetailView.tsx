@@ -28,6 +28,8 @@ interface TrackingData {
   notasMateriasPeriodos?: Array<{
     materiaId: string;
     periodoId: string;
+    materiaNombre?: string;
+    periodoNombre?: string;
     promedioQuizzes: number;
     notaEvaluacion: number;
     notaFinal: number;
@@ -51,10 +53,24 @@ interface StudentDetailViewProps {
   onClose: () => void;
 }
 
+interface RespuestaDetalle {
+  pregunta: string;
+  orden: number;
+  es_correcta: boolean;
+  opcionSeleccionada: string | null;
+  opciones: Array<{ id: string; texto: string; es_correcta: boolean }>;
+}
+
 export default function StudentDetailView({ studentId, onClose }: StudentDetailViewProps) {
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalRespuestas, setModalRespuestas] = useState<{
+    quizEval: string;
+    tipo: 'quiz' | 'evaluacion';
+    respuestas: RespuestaDetalle[];
+    loading: boolean;
+  } | null>(null);
 
   useEffect(() => {
     fetchStudentTracking();
@@ -92,22 +108,47 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
     }
   };
 
-  // Agrupar quizes por materia
-  const quizesPorMateria = trackingData?.intentosQuiz.reduce((acc: any, intento: any) => {
-    const materiaNombre = intento.quizzes?.subtemas?.temas?.periodos?.materias?.nombre || 'Sin materia';
-    if (!acc[materiaNombre]) {
-      acc[materiaNombre] = [];
+  const verRespuestas = async (intentoId: string, nombre: string, tipo: 'quiz' | 'evaluacion') => {
+    setModalRespuestas({ quizEval: nombre, tipo, respuestas: [], loading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setModalRespuestas((m) => m ? { ...m, loading: false, respuestas: [] } : null);
+        return;
+      }
+      const res = await fetch(
+        `/api/teachers/get-intento-respuestas?intento_id=${intentoId}&tipo=${tipo}`,
+        { headers: { 'Authorization': `Bearer ${session.access_token}` } }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error al cargar');
+      setModalRespuestas((m) => m ? { ...m, respuestas: json.data || [], loading: false } : null);
+    } catch {
+      setModalRespuestas((m) => m ? { ...m, respuestas: [], loading: false } : null);
     }
+  };
+
+  // Agrupar quizes por materia (manejar arrays en relaciones anidadas)
+  const quizesPorMateria = trackingData?.intentosQuiz.reduce((acc: any, intento: any) => {
+    const quiz = intento.quizzes;
+    const subtema = quiz?.subtemas ? (Array.isArray(quiz.subtemas) ? quiz.subtemas[0] : quiz.subtemas) : null;
+    const tema = subtema?.temas ? (Array.isArray(subtema.temas) ? subtema.temas[0] : subtema.temas) : null;
+    const periodo = tema?.periodos ? (Array.isArray(tema.periodos) ? tema.periodos[0] : tema.periodos) : null;
+    const materia = periodo?.materias ? (Array.isArray(periodo.materias) ? periodo.materias[0] : periodo.materias) : null;
+    const materiaNombre = materia?.nombre || 'Sin materia';
+    if (!acc[materiaNombre]) acc[materiaNombre] = [];
     acc[materiaNombre].push(intento);
     return acc;
   }, {}) || {};
 
   // Agrupar evaluaciones por materia
   const evaluacionesPorMateria = trackingData?.intentosEvaluacion.reduce((acc: any, intento: any) => {
-    const materiaNombre = intento.evaluaciones_periodo?.periodos?.materias?.nombre || 'Sin materia';
-    if (!acc[materiaNombre]) {
-      acc[materiaNombre] = [];
-    }
+    const ep = intento.evaluaciones_periodo;
+    const materia = ep?.materias ? (Array.isArray(ep.materias) ? ep.materias[0] : ep.materias) : null;
+    const periodo = ep?.periodos ? (Array.isArray(ep.periodos) ? ep.periodos[0] : ep.periodos) : null;
+    const matFromPeriodo = periodo?.materias ? (Array.isArray(periodo.materias) ? periodo.materias[0] : periodo.materias) : null;
+    const materiaNombre = materia?.nombre || matFromPeriodo?.nombre || 'Sin materia';
+    if (!acc[materiaNombre]) acc[materiaNombre] = [];
     acc[materiaNombre].push(intento);
     return acc;
   }, {}) || {};
@@ -339,10 +380,10 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
               <thead>
                 <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                   <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-                    Materia (ID)
+                    Materia
                   </th>
                   <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
-                    Periodo (ID)
+                    Periodo
                   </th>
                   <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>
                     Prom. Quizes
@@ -362,10 +403,10 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
                 {notasMateriasPeriodos.map((n) => (
                   <tr key={`${n.materiaId}-${n.periodoId}`} style={{ borderBottom: '1px solid #e5e7eb' }}>
                     <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#111827' }}>
-                      {n.materiaId}
+                      {n.materiaNombre || n.materiaId}
                     </td>
                     <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#111827' }}>
-                      {n.periodoId}
+                      {n.periodoNombre || n.periodoId}
                     </td>
                     <td style={{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'center', color: '#4b5563' }}>
                       {n.promedioQuizzes.toFixed(2)}
@@ -518,22 +559,25 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            gap: '0.75rem',
                           }}>
-                            <div>
+                            <div style={{ flex: 1 }}>
                               <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1f2937' }}>
-                                {intento.quizzes?.titulo || 'Sin título'}
+                                {intento.quizzes?.nombre || intento.quizzes?.titulo || 'Sin título'}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                {new Date(intento.fecha_inicio).toLocaleDateString('es-CO')}
+                                {intento.completado && intento.fecha_fin
+                                  ? new Date(intento.fecha_fin).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+                                  : new Date(intento.fecha_inicio).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <div style={{
                                 fontSize: '1rem',
                                 fontWeight: 600,
-                                color: intento.calificacion !== null ? '#1f2937' : '#6b7280',
+                                color: intento.calificacion != null ? '#1f2937' : '#6b7280',
                               }}>
-                                {intento.calificacion !== null ? `${intento.calificacion.toFixed(2)} / 5.00` : 'En progreso'}
+                                {intento.calificacion != null ? `${Number(intento.calificacion).toFixed(2)} / 5.00` : 'En progreso'}
                               </div>
                               <div style={{
                                 fontSize: '0.75rem',
@@ -542,6 +586,25 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
                                 {intento.estado === 'completado' ? 'Completado' : 'En progreso'}
                               </div>
                             </div>
+                            {intento.estado === 'completado' && (
+                              <button
+                                type="button"
+                                onClick={() => verRespuestas(intento.id, intento.quizzes?.nombre || intento.quizzes?.titulo || 'Quiz', 'quiz')}
+                                style={{
+                                  padding: '0.375rem 0.75rem',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 500,
+                                  background: '#dbeafe',
+                                  color: '#1d4ed8',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Ver respuestas
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -563,22 +626,25 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            gap: '0.75rem',
                           }}>
-                            <div>
+                            <div style={{ flex: 1 }}>
                               <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#1f2937' }}>
-                                {intento.evaluaciones_periodo?.titulo || 'Sin título'}
+                                {intento.evaluaciones_periodo?.nombre || intento.evaluaciones_periodo?.titulo || 'Sin título'}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                {new Date(intento.fecha_inicio).toLocaleDateString('es-CO')}
+                                {intento.completado && intento.fecha_fin
+                                  ? new Date(intento.fecha_fin).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+                                  : new Date(intento.fecha_inicio).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <div style={{
                                 fontSize: '1rem',
                                 fontWeight: 600,
-                                color: intento.calificacion !== null ? '#1f2937' : '#6b7280',
+                                color: intento.calificacion != null ? '#1f2937' : '#6b7280',
                               }}>
-                                {intento.calificacion !== null ? `${intento.calificacion.toFixed(2)} / 5.00` : 'En progreso'}
+                                {intento.calificacion != null ? `${Number(intento.calificacion).toFixed(2)} / 5.00` : 'En progreso'}
                               </div>
                               <div style={{
                                 fontSize: '0.75rem',
@@ -587,6 +653,25 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
                                 {intento.estado === 'completado' ? 'Completado' : 'En progreso'}
                               </div>
                             </div>
+                            {intento.estado === 'completado' && (
+                              <button
+                                type="button"
+                                onClick={() => verRespuestas(intento.id, intento.evaluaciones_periodo?.nombre || intento.evaluaciones_periodo?.titulo || 'Evaluación', 'evaluacion')}
+                                style={{
+                                  padding: '0.375rem 0.75rem',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 500,
+                                  background: '#dbeafe',
+                                  color: '#1d4ed8',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Ver respuestas
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -598,6 +683,104 @@ export default function StudentDetailView({ studentId, onClose }: StudentDetailV
           </div>
         )}
       </div>
+
+      {/* Modal de respuestas (bien/mal) */}
+      {modalRespuestas && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setModalRespuestas(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              color: '#1f2937',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              maxWidth: '560px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937' }}>
+                Respuestas: {modalRespuestas.quizEval}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalRespuestas(null)}
+                style={{
+                  background: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            {modalRespuestas.loading ? (
+              <p style={{ color: '#1f2937' }}>Cargando respuestas...</p>
+            ) : modalRespuestas.respuestas.length === 0 ? (
+              <p style={{ color: '#374151' }}>No hay respuestas registradas.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {modalRespuestas.respuestas
+                  .sort((a, b) => a.orden - b.orden)
+                  .map((r, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        background: r.es_correcta ? '#d1fae5' : '#fee2e2',
+                        border: `1px solid ${r.es_correcta ? '#10b981' : '#ef4444'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>{r.es_correcta ? '✓' : '✗'}</span>
+                        <span style={{ fontWeight: 600, color: r.es_correcta ? '#065f46' : '#991b1b' }}>
+                          {r.es_correcta ? 'Correcta' : 'Incorrecta'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#1f2937' }}>{r.pregunta}</p>
+                      {r.opciones?.length > 0 && (
+                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>
+                          {r.opciones.map((o: any) => (
+                            <div
+                              key={o.id}
+                              style={{
+                                marginLeft: '0.5rem',
+                                color: o.id === r.opcionSeleccionada ? '#1f2937' : '#374151',
+                                fontWeight: o.id === r.opcionSeleccionada ? 600 : 400,
+                              }}
+                            >
+                              {o.es_correcta ? '✓ ' : ''}{o.texto}
+                              {o.id === r.opcionSeleccionada && ' (seleccionada)'}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,6 +26,14 @@ interface EstudianteConCurso {
   };
 }
 
+interface RespuestaItem {
+  pregunta: string;
+  orden: number;
+  es_correcta: boolean;
+  opcionSeleccionada: string | null;
+  opciones: Array<{ id: string; texto: string; es_correcta: boolean }>;
+}
+
 interface TrackingData {
   estudiante: any;
   intentosQuiz: any[];
@@ -53,6 +61,40 @@ export default function TeacherReportsView() {
   const [loadingTracking, setLoadingTracking] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCurso, setSelectedCurso] = useState<string>('all');
+  const [modalRespuestas, setModalRespuestas] = useState<{
+    estudiante: string;
+    quizEval: string;
+    respuestas: RespuestaItem[];
+    loading: boolean;
+  } | null>(null);
+
+  const verRespuestas = async (
+    intentoId: string,
+    tipo: 'quiz' | 'evaluacion',
+    estudianteNombre: string,
+    quizEvalNombre: string
+  ) => {
+    setModalRespuestas({ estudiante: estudianteNombre, quizEval: quizEvalNombre, respuestas: [], loading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No hay sesión');
+      const res = await fetch(
+        `/api/teachers/get-intento-respuestas?intento_id=${intentoId}&tipo=${tipo}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error al cargar');
+      setModalRespuestas({
+        estudiante: estudianteNombre,
+        quizEval: quizEvalNombre,
+        respuestas: json.data || [],
+        loading: false,
+      });
+    } catch (err: any) {
+      setModalRespuestas(null);
+      alert(err.message || 'Error al cargar respuestas');
+    }
+  };
 
   const fetchMyStudents = async () => {
     try {
@@ -273,12 +315,15 @@ export default function TeacherReportsView() {
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#6b7280' }}>
                         Estado
                       </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#6b7280' }}>
+                        Respuestas
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {trackingData.intentosQuiz.length === 0 ? (
                       <tr>
-                        <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                        <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
                           No hay intentos de quiz registrados
                         </td>
                       </tr>
@@ -286,10 +331,10 @@ export default function TeacherReportsView() {
                       trackingData.intentosQuiz.map((intento: any) => (
                         <tr key={intento.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
-                            {intento.quizzes?.titulo || 'N/A'}
+                            {intento.quizzes?.nombre || intento.quizzes?.titulo || 'N/A'}
                           </td>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
-                            {intento.quizzes?.subtemas?.temas?.periodos?.materias?.nombre || 'N/A'}
+                            {intento.quizzes?.subtemas?.temas?.periodos?.materias?.nombre ?? 'N/A'}
                           </td>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
                             {new Date(intento.fecha_inicio).toLocaleDateString('es-CO')}
@@ -310,6 +355,32 @@ export default function TeacherReportsView() {
                             >
                               {intento.estado === 'completado' ? 'Completado' : 'En progreso'}
                             </span>
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            {intento.estado === 'completado' && intento.id ? (
+                              <button
+                                type="button"
+                                onClick={() => verRespuestas(
+                                  intento.id,
+                                  'quiz',
+                                  `${selectedEstudiante?.estudiante.nombre || ''} ${selectedEstudiante?.estudiante.apellido || ''}`,
+                                  intento.quizzes?.nombre || intento.quizzes?.titulo || 'Quiz'
+                                )}
+                                style={{
+                                  padding: '0.35rem 0.75rem',
+                                  fontSize: '0.8rem',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Ver bien/mal
+                              </button>
+                            ) : (
+                              <span style={{ color: '#9ca3af' }}>—</span>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -343,12 +414,15 @@ export default function TeacherReportsView() {
                       <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#6b7280' }}>
                         Estado
                       </th>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#6b7280' }}>
+                        Respuestas
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {trackingData.intentosEvaluacion.length === 0 ? (
                       <tr>
-                        <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                        <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
                           No hay intentos de evaluación registrados
                         </td>
                       </tr>
@@ -356,10 +430,10 @@ export default function TeacherReportsView() {
                       trackingData.intentosEvaluacion.map((intento: any) => (
                         <tr key={intento.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
-                            {intento.evaluaciones_periodo?.titulo || 'N/A'}
+                            {intento.evaluaciones_periodo?.nombre || intento.evaluaciones_periodo?.titulo || 'N/A'}
                           </td>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
-                            {intento.evaluaciones_periodo?.periodos?.materias?.nombre || 'N/A'}
+                            {intento.evaluaciones_periodo?.periodos?.materias?.nombre ?? 'N/A'}
                           </td>
                           <td style={{ padding: '0.75rem', color: '#1f2937' }}>
                             {new Date(intento.fecha_inicio).toLocaleDateString('es-CO')}
@@ -381,6 +455,32 @@ export default function TeacherReportsView() {
                               {intento.estado === 'completado' ? 'Completado' : 'En progreso'}
                             </span>
                           </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            {intento.estado === 'completado' && intento.id ? (
+                              <button
+                                type="button"
+                                onClick={() => verRespuestas(
+                                  intento.id,
+                                  'evaluacion',
+                                  `${selectedEstudiante?.estudiante.nombre || ''} ${selectedEstudiante?.estudiante.apellido || ''}`,
+                                  intento.evaluaciones_periodo?.nombre || intento.evaluaciones_periodo?.titulo || 'Evaluación'
+                                )}
+                                style={{
+                                  padding: '0.35rem 0.75rem',
+                                  fontSize: '0.8rem',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Ver bien/mal
+                              </button>
+                            ) : (
+                              <span style={{ color: '#9ca3af' }}>—</span>
+                            )}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -388,6 +488,105 @@ export default function TeacherReportsView() {
                 </table>
               </div>
             </div>
+
+            {/* Modal de respuestas correctas/incorrectas */}
+            {modalRespuestas && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 9999,
+                }}
+                onClick={() => setModalRespuestas(null)}
+              >
+                <div
+                  style={{
+                    background: 'white',
+                    color: '#1f2937',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    maxWidth: '560px',
+                    width: '90%',
+                    maxHeight: '80vh',
+                    overflow: 'auto',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1f2937' }}>Respuestas: {modalRespuestas.estudiante}</h3>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#374151' }}>{modalRespuestas.quizEval}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModalRespuestas(null)}
+                      style={{
+                        background: '#e5e7eb',
+                        color: '#1f2937',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        fontSize: '1.25rem',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {modalRespuestas.loading ? (
+                    <p style={{ color: '#1f2937' }}>Cargando respuestas...</p>
+                  ) : modalRespuestas.respuestas.length === 0 ? (
+                    <p style={{ color: '#374151' }}>No hay respuestas registradas.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {modalRespuestas.respuestas
+                        .sort((a, b) => a.orden - b.orden)
+                        .map((r, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '0.75rem',
+                              borderRadius: '8px',
+                              background: r.es_correcta ? '#d1fae5' : '#fee2e2',
+                              border: `1px solid ${r.es_correcta ? '#10b981' : '#ef4444'}`,
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '1.25rem' }}>{r.es_correcta ? '✓' : '✗'}</span>
+                              <span style={{ fontWeight: 600, color: r.es_correcta ? '#065f46' : '#991b1b' }}>
+                                {r.es_correcta ? 'Correcta' : 'Incorrecta'}
+                              </span>
+                            </div>
+                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#1f2937' }}>{r.pregunta}</p>
+                            {r.opciones?.length > 0 && (
+                              <div style={{ fontSize: '0.85rem', color: '#374151' }}>
+                                {r.opciones.map((o: any) => (
+                                  <div
+                                    key={o.id}
+                                    style={{
+                                      marginLeft: '0.5rem',
+                                      color: o.id === r.opcionSeleccionada ? '#1f2937' : '#374151',
+                                      fontWeight: o.id === r.opcionSeleccionada ? 600 : 400,
+                                    }}
+                                  >
+                                    {o.es_correcta ? '✓ ' : ''}{o.texto}
+                                    {o.id === r.opcionSeleccionada && ' (seleccionada)'}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

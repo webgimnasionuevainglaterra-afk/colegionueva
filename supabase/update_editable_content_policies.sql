@@ -24,3 +24,8 @@ CREATE POLICY "Service role can manage editable content"
 
 
 
+
+
+
+
+

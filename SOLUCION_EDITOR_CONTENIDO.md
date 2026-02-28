@@ -124,3 +124,8 @@ Puedes verificar manualmente si los cambios se están guardando:
 
 Si después de seguir estos pasos aún no funciona, revisa la consola del navegador (F12) y comparte los errores que veas.
 
+
+
+
+
+

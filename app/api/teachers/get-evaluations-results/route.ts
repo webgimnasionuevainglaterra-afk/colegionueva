@@ -53,27 +53,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener los cursos asignados al profesor
+    // Obtener los cursos asignados al profesor (enfoque directo, más robusto que nested)
     const { data: cursosAsignados, error: cursosError } = await supabaseAdmin
       .from('profesores_cursos')
-      .select(`
-        curso_id,
-        cursos (
-          id,
-          nombre,
-          nivel,
-          materias (
-            id,
-            nombre,
-            periodos (
-              id,
-              nombre,
-              fecha_inicio,
-              fecha_fin
-            )
-          )
-        )
-      `)
+      .select('curso_id')
       .eq('profesor_id', user.id);
 
     if (cursosError) {
@@ -84,15 +67,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cursoIds = cursosAsignados?.map((pc: any) => pc.cursos?.id).filter(Boolean) || [];
-    const materiaIds = cursosAsignados?.flatMap((pc: any) => 
-      pc.cursos?.materias?.map((m: any) => m.id) || []
-    ).filter(Boolean) || [];
-    const periodoIds = cursosAsignados?.flatMap((pc: any) => 
-      pc.cursos?.materias?.flatMap((m: any) => 
-        m.periodos?.map((p: any) => p.id) || []
-      ) || []
-    ).filter(Boolean) || [];
+    const cursoIds = cursosAsignados?.map((pc: any) => pc.curso_id).filter(Boolean) || [];
+    if (cursoIds.length === 0) {
+      return NextResponse.json({ success: true, data: [] }, { status: 200 });
+    }
+
+    // Obtener materias y periodos directamente (más confiable que estructura anidada)
+    const { data: materias, error: materiasError } = await supabaseAdmin
+      .from('materias')
+      .select('id, nombre, curso_id, cursos(id, nombre, nivel)')
+      .in('curso_id', cursoIds);
+
+    if (materiasError || !materias?.length) {
+      return NextResponse.json({ success: true, data: [] }, { status: 200 });
+    }
+
+    const materiaIds = materias.map((m: any) => m.id);
+    const { data: periodos, error: periodosError } = await supabaseAdmin
+      .from('periodos')
+      .select('id, nombre, materia_id, materias(id, nombre, curso_id, cursos(id, nombre, nivel))')
+      .in('materia_id', materiaIds);
+
+    if (periodosError || !periodos?.length) {
+      return NextResponse.json({ success: true, data: [] }, { status: 200 });
+    }
+
+    const periodoIds = periodos.map((p: any) => p.id);
+    // Mapa periodo_id -> { materia, curso } para fallback cuando la estructura anidada del quiz falle
+    const periodoToMateriaCurso = new Map<string, { materia: any; curso: any }>();
+    periodos.forEach((p: any) => {
+      const mat = p.materias;
+      if (mat?.id) periodoToMateriaCurso.set(p.id, { materia: mat, curso: mat.cursos });
+    });
 
     // Obtener temas y subtemas para los quizzes
     const { data: temas, error: temasError } = await supabaseAdmin
@@ -152,47 +158,55 @@ export async function GET(request: NextRequest) {
         .in('subtema_id', subtemaIds);
 
       if (!quizzesError && quizzesData) {
-        // Para cada quiz, obtener los intentos de los estudiantes
+        const quizIds = quizzesData.map((q: any) => q.id);
+        // Obtener TODOS los intentos de todos los quizzes en una sola consulta (más rápido)
+        const { data: todosIntentos, error: intentosError } = await supabaseAdmin
+          .from('intentos_quiz')
+          .select('id, quiz_id, estudiante_id, fecha_inicio, fecha_fin, calificacion, completado')
+          .in('quiz_id', quizIds);
+
+        // Pre-cargar estudiantes por curso (una consulta por cada curso único)
+        const cursoIdsUnicos = new Set<string>();
         for (const quiz of quizzesData) {
-          const { data: intentos, error: intentosError } = await supabaseAdmin
-            .from('intentos_quiz')
-            .select(`
-              id,
-              estudiante_id,
-              fecha_inicio,
-              fecha_fin,
-              calificacion,
-              completado,
-              estudiantes:estudiante_id (
-                id,
-                nombre,
-                apellido,
-                foto_url
-              )
-            `)
-            .eq('quiz_id', quiz.id);
+          let cid = quiz.subtemas?.temas?.periodos?.materias?.cursos?.id;
+          if (!cid) {
+            const pid = quiz.subtemas?.temas?.periodos?.id || quiz.subtemas?.temas?.periodo_id;
+            cid = periodoToMateriaCurso.get(pid)?.curso?.id;
+          }
+          if (cid) cursoIdsUnicos.add(cid);
+        }
+        const estudiantesPorCurso = new Map<string, any[]>();
+        await Promise.all(Array.from(cursoIdsUnicos).map(async (cursoId) => {
+          const { data } = await supabaseAdmin
+            .from('estudiantes_cursos')
+            .select('estudiante_id, estudiantes:estudiante_id(id, user_id, nombre, apellido, foto_url)')
+            .eq('curso_id', cursoId);
+          const list = (data || []).map((ec: any) => ec.estudiantes).filter(Boolean);
+          estudiantesPorCurso.set(cursoId, list);
+        }));
 
-          if (!intentosError && intentos) {
-            // Obtener estudiantes asignados al curso
-            const cursoId = quiz.subtemas?.temas?.periodos?.materias?.cursos?.id;
-            const { data: estudiantesCurso } = await supabaseAdmin
-              .from('estudiantes_cursos')
-              .select(`
-                estudiante_id,
-                estudiantes:estudiante_id (
-                  id,
-                  nombre,
-                  apellido,
-                  foto_url
-                )
-              `)
-              .eq('curso_id', cursoId);
+        const intentosPorQuiz = new Map<string, any[]>();
+        (todosIntentos || []).forEach((i: any) => {
+          const list = intentosPorQuiz.get(i.quiz_id) || [];
+          list.push(i);
+          intentosPorQuiz.set(i.quiz_id, list);
+        });
 
-            const estudiantesAsignados = estudiantesCurso?.map((ec: any) => ec.estudiantes).filter(Boolean) || [];
+        for (const quiz of quizzesData) {
+          const intentos = intentosPorQuiz.get(quiz.id) || [];
+          let cursoId = quiz.subtemas?.temas?.periodos?.materias?.cursos?.id;
+          if (!cursoId) {
+            const periodoId = quiz.subtemas?.temas?.periodos?.id || quiz.subtemas?.temas?.periodo_id;
+            cursoId = periodoToMateriaCurso.get(periodoId)?.curso?.id;
+          }
+          if (!cursoId) continue;
+
+          const estudiantesAsignados = estudiantesPorCurso.get(cursoId) || [];
             
-            // Crear lista completa de estudiantes (con y sin intentos)
+            // IMPORTANTE: intentos usan auth.users.id (estudiante.user_id), NO estudiantes.id
             const estudiantesConResultados = estudiantesAsignados.map((estudiante: any) => {
-              const intento = intentos.find((i: any) => i.estudiante_id === estudiante.id);
+              const idParaIntentos = estudiante.user_id || estudiante.id;
+              const intento = intentos.find((i: any) => i.estudiante_id === idParaIntentos);
               return {
                 estudiante: {
                   id: estudiante.id,
@@ -220,6 +234,10 @@ export async function GET(request: NextRequest) {
               ? calificaciones.reduce((sum: number, cal: number) => sum + cal, 0) / calificaciones.length
               : 0;
 
+            const periodoData = quiz.subtemas?.temas?.periodos;
+            const materiaData = periodoData?.materias || periodoToMateriaCurso.get(periodoData?.id)?.materia;
+            const cursoData = materiaData?.cursos || periodoToMateriaCurso.get(periodoData?.id)?.curso;
+
             quizzesResults.push({
               id: quiz.id,
               nombre: quiz.nombre,
@@ -228,21 +246,21 @@ export async function GET(request: NextRequest) {
               fecha_inicio: quiz.fecha_inicio,
               fecha_fin: quiz.fecha_fin,
               curso: {
-                id: quiz.subtemas?.temas?.periodos?.materias?.cursos?.id,
-                nombre: quiz.subtemas?.temas?.periodos?.materias?.cursos?.nombre,
-                nivel: quiz.subtemas?.temas?.periodos?.materias?.cursos?.nivel,
+                id: cursoData?.id,
+                nombre: cursoData?.nombre || 'N/A',
+                nivel: cursoData?.nivel || 'N/A',
               },
               materia: {
-                id: quiz.subtemas?.temas?.periodos?.materias?.id,
-                nombre: quiz.subtemas?.temas?.periodos?.materias?.nombre,
+                id: materiaData?.id,
+                nombre: materiaData?.nombre || 'N/A',
               },
               periodo: {
-                id: quiz.subtemas?.temas?.periodos?.id,
-                nombre: quiz.subtemas?.temas?.periodos?.nombre,
+                id: periodoData?.id,
+                nombre: periodoData?.nombre || 'N/A',
               },
               subtema: {
                 id: quiz.subtemas?.id,
-                nombre: quiz.subtemas?.nombre,
+                nombre: quiz.subtemas?.nombre || 'N/A',
               },
               estudiantes: estudiantesConResultados,
               estadisticas: {
@@ -252,7 +270,6 @@ export async function GET(request: NextRequest) {
                 promedio: parseFloat(promedio.toFixed(2)),
               },
             });
-          }
         }
       }
     }
@@ -300,47 +317,45 @@ export async function GET(request: NextRequest) {
         .in('materia_id', materiaIds);
 
       if (!evaluacionesError && evaluacionesData) {
-        // Para cada evaluación, obtener los intentos de los estudiantes
+        const evalIds = evaluacionesData.map((e: any) => e.id);
+        const { data: todosIntentosEval } = await supabaseAdmin
+          .from('intentos_evaluacion')
+          .select('id, evaluacion_id, estudiante_id, fecha_inicio, fecha_fin, calificacion, completado')
+          .in('evaluacion_id', evalIds);
+
+        const cursoIdsEval = new Set<string>();
+        evaluacionesData.forEach((e: any) => {
+          const cid = e.materias?.cursos?.id || e.periodos?.materias?.cursos?.id;
+          if (cid) cursoIdsEval.add(cid);
+        });
+        const estudiantesPorCursoEval = new Map<string, any[]>();
+        await Promise.all(Array.from(cursoIdsEval).map(async (cursoId) => {
+          const { data } = await supabaseAdmin
+            .from('estudiantes_cursos')
+            .select('estudiante_id, estudiantes:estudiante_id(id, user_id, nombre, apellido, foto_url)')
+            .eq('curso_id', cursoId);
+          const list = (data || []).map((ec: any) => ec.estudiantes).filter(Boolean);
+          estudiantesPorCursoEval.set(cursoId, list);
+        }));
+
+        const intentosPorEval = new Map<string, any[]>();
+        (todosIntentosEval || []).forEach((i: any) => {
+          const list = intentosPorEval.get(i.evaluacion_id) || [];
+          list.push(i);
+          intentosPorEval.set(i.evaluacion_id, list);
+        });
+
         for (const evaluacion of evaluacionesData) {
-          const { data: intentos, error: intentosError } = await supabaseAdmin
-            .from('intentos_evaluacion')
-            .select(`
-              id,
-              estudiante_id,
-              fecha_inicio,
-              fecha_fin,
-              calificacion,
-              completado,
-              estudiantes:estudiante_id (
-                id,
-                nombre,
-                apellido,
-                foto_url
-              )
-            `)
-            .eq('evaluacion_id', evaluacion.id);
+          const intentos = intentosPorEval.get(evaluacion.id) || [];
+          const cursoId = evaluacion.materias?.cursos?.id || evaluacion.periodos?.materias?.cursos?.id;
+          if (!cursoId) continue;
 
-          if (!intentosError && intentos) {
-            // Obtener estudiantes asignados al curso
-            const cursoId = evaluacion.materias?.cursos?.id || evaluacion.periodos?.materias?.cursos?.id;
-            const { data: estudiantesCurso } = await supabaseAdmin
-              .from('estudiantes_cursos')
-              .select(`
-                estudiante_id,
-                estudiantes:estudiante_id (
-                  id,
-                  nombre,
-                  apellido,
-                  foto_url
-                )
-              `)
-              .eq('curso_id', cursoId);
-
-            const estudiantesAsignados = estudiantesCurso?.map((ec: any) => ec.estudiantes).filter(Boolean) || [];
+          const estudiantesAsignados = estudiantesPorCursoEval.get(cursoId) || [];
             
-            // Crear lista completa de estudiantes (con y sin intentos)
+            // IMPORTANTE: intentos usan auth.users.id (estudiante.user_id), NO estudiantes.id
             const estudiantesConResultados = estudiantesAsignados.map((estudiante: any) => {
-              const intento = intentos.find((i: any) => i.estudiante_id === estudiante.id);
+              const idParaIntentos = estudiante.user_id || estudiante.id;
+              const intento = intentos.find((i: any) => i.estudiante_id === idParaIntentos);
               return {
                 estudiante: {
                   id: estudiante.id,
@@ -359,16 +374,16 @@ export async function GET(request: NextRequest) {
               };
             });
 
-            const completados = estudiantesConResultados.filter((e: any) => e.estado === 'completado').length;
-            const pendientes = estudiantesConResultados.filter((e: any) => e.estado === 'pendiente').length;
-            const calificaciones = estudiantesConResultados
-              .filter((e: any) => e.intento?.calificacion !== null && e.intento?.calificacion !== undefined)
-              .map((e: any) => parseFloat(e.intento.calificacion));
-            const promedio = calificaciones.length > 0
-              ? calificaciones.reduce((sum: number, cal: number) => sum + cal, 0) / calificaciones.length
-              : 0;
+          const completados = estudiantesConResultados.filter((e: any) => e.estado === 'completado').length;
+          const pendientes = estudiantesConResultados.filter((e: any) => e.estado === 'pendiente').length;
+          const calificaciones = estudiantesConResultados
+            .filter((e: any) => e.intento?.calificacion !== null && e.intento?.calificacion !== undefined)
+            .map((e: any) => parseFloat(e.intento.calificacion));
+          const promedio = calificaciones.length > 0
+            ? calificaciones.reduce((sum: number, cal: number) => sum + cal, 0) / calificaciones.length
+            : 0;
 
-            evaluacionesResults.push({
+          evaluacionesResults.push({
               id: evaluacion.id,
               nombre: evaluacion.nombre,
               descripcion: evaluacion.descripcion,
@@ -389,14 +404,13 @@ export async function GET(request: NextRequest) {
                 nombre: evaluacion.periodos?.nombre,
               },
               estudiantes: estudiantesConResultados,
-              estadisticas: {
-                total: estudiantesAsignados.length,
-                completados,
-                pendientes,
-                promedio: parseFloat(promedio.toFixed(2)),
-              },
-            });
-          }
+            estadisticas: {
+              total: estudiantesAsignados.length,
+              completados,
+              pendientes,
+              promedio: parseFloat(promedio.toFixed(2)),
+            },
+          });
         }
       }
     }
@@ -417,6 +431,11 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
+
+
+
 
 
 

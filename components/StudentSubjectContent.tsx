@@ -2018,25 +2018,25 @@ export default function StudentSubjectContent({
                       <a
                         key={idx}
                         href={fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.5rem 0.9rem',
-                          borderRadius: '6px',
-                          background: '#2563eb',
-                          color: 'white',
-                          fontSize: '0.85rem',
-                          textDecoration: 'none',
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.5rem 0.9rem',
+                    borderRadius: '6px',
+                    background: '#2563eb',
+                    color: 'white',
+                    fontSize: '0.85rem',
+                    textDecoration: 'none',
                           width: 'fit-content',
-                        }}
-                      >
+                  }}
+                >
                         📄 Ver archivo {files.length > 1 ? `${idx + 1}` : ''}
-                      </a>
+                </a>
                     ))}
-                  </div>
+              </div>
                 </div>
               );
             })()}
